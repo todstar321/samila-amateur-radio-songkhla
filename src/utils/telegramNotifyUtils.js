@@ -23,11 +23,10 @@ export const TELEGRAM_STORAGE_KEY = 'samila_telegram_settings';
 
 // Default configuration based on user's setup
 // Telegram Web URL: web.telegram.org/k/#-5204937286
-// Supergroup Bot API ID: -1005204937286
 export const DEFAULT_TELEGRAM_SETTINGS = {
-  botToken: '', // Token from @BotFather for TRIPLE T ROBOT
-  chatId: '-1005204937286',
-  fallbackChatId: '-5204937286',
+  botToken: '7577840608:AAH_m0LWjRk3916GSvBcTsp1YLdaJXFlIy0', // TRIPLE T ROBOT (@TRIPLE_T_RoBot)
+  chatId: '-5204937286',
+  fallbackChatId: '-1005204937286',
   groupName: 'HS9AS สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา',
   botName: 'TRIPLE T ROBOT',
   notifyOnRegister: true, // Auto send when applicant registers
