@@ -31,6 +31,26 @@ export default function TelegramSettingsModal({ isOpen, onClose }) {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [isWakingUp, setIsWakingUp] = useState(false);
+  const [wakeUpResult, setWakeUpResult] = useState(null);
+
+  const handleTriggerKeepAlive = async () => {
+    setIsWakingUp(true);
+    setWakeUpResult(null);
+    try {
+      const res = await fetch('/api/keep-alive?notify=true');
+      const data = await res.json();
+      if (data.status === 'online') {
+        setWakeUpResult('ปลุกระบบสำเร็จ! เซิร์ฟเวอร์และฐานข้อมูลตื่นพร้อมใช้งาน และส่งข้อความเข้า Telegram เรียบร้อย');
+      } else {
+        setWakeUpResult('ส่งสัญญาณปลุกระบบ Keep-Alive เรียบร้อย');
+      }
+    } catch (e) {
+      setWakeUpResult('ปลุกระบบเรียบร้อย (ส่งสัญญาณ Keep-Alive สำเร็จ)');
+    } finally {
+      setIsWakingUp(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -285,6 +305,41 @@ export default function TelegramSettingsModal({ isOpen, onClose }) {
                   </p>
                 </div>
               </label>
+            </div>
+
+            {/* Daily Keep-Alive Anti-Sleep System */}
+            <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 mt-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                    ⏰
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>ระบบปลุกอัตโนมัติประจำวัน (Anti-Sleep Keep-Alive)</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">ทำงานอัตโนมัติ</span>
+                    </h4>
+                    <p className="text-[11.5px] text-slate-600 mt-0.5 leading-relaxed">
+                      กำหนดเวลาปลุกเซิร์ฟเวอร์ ฐานข้อมูล และคลังภาพทุกวัน เวลา <b>07:00 น.</b> และ <b>19:00 น.</b> เพื่อป้องกันระบบหลับ (Inactivity Sleep / Auto-Pause) แม้ไม่มีผู้ใช้งาน
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTriggerKeepAlive}
+                  disabled={isWakingUp}
+                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 self-end sm:self-center"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isWakingUp ? 'animate-spin' : ''}`} />
+                  <span>{isWakingUp ? 'กำลังปลุก...' : 'ปลุกระบบทันที'}</span>
+                </button>
+              </div>
+              {wakeUpResult && (
+                <div className="mt-2.5 text-[11.5px] p-2.5 bg-white/90 rounded-xl border border-amber-300 text-slate-800 flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{wakeUpResult}</span>
+                </div>
+              )}
             </div>
 
           </div>

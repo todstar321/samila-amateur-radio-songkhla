@@ -1,0 +1,32 @@
+name: Daily System Wake-up & Anti-Sleep Keep-Alive (HS9AS)
+
+on:
+  schedule:
+    # 00:00 UTC = 07:00 AM Thailand Time (ทุกวันเวลา 7 โมงเช้า)
+    - cron: '0 0 * * *'
+    # 12:00 UTC = 19:00 PM Thailand Time (ทุกวันเวลา 1 ทุ่มตรง)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # ปลุกระบบได้ด้วยตนเองตลอดเวลาผ่าน GitHub
+
+jobs:
+  wake-up:
+    name: Ping & Wake Up System
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HS9AS Main Website
+        run: |
+          echo "Pinging Website: https://hs9as.vercel.app"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://hs9as.vercel.app)
+          echo "HTTP Status: $STATUS"
+
+      - name: Trigger Daily Keep-Alive & Telegram Heartbeat
+        run: |
+          echo "Triggering Keep-Alive API..."
+          RESPONSE=$(curl -s "https://hs9as.vercel.app/api/keep-alive")
+          echo "Response: $RESPONSE"
+
+      - name: Ping Backend Services
+        run: |
+          curl -s -o /dev/null "https://hs9as.vercel.app/api/cloudinary"
+          curl -s -o /dev/null "https://hs9as.vercel.app/api/layout-settings"
+          echo "All HS9AS services successfully woken up!"

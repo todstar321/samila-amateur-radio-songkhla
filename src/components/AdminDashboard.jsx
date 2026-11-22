@@ -2300,7 +2300,7 @@ export default function AdminDashboard({
                       </p>
                       <div className="mt-2 flex items-center gap-3 text-xs text-sky-100 flex-wrap">
                         <span className="bg-black/30 px-2.5 py-1 rounded-lg border border-white/10 font-mono">
-                          Chat ID: -1005204937286
+                          Chat ID: -5204937286
                         </span>
                         <a 
                           href="https://web.telegram.org/k/#-5204937286" 
