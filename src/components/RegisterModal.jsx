@@ -29,6 +29,7 @@ import DeveloperCredit from './DeveloperCredit';
 import BuddhistDatePicker from './BuddhistDatePicker';
 import { consumeMemberId } from '../utils/sequenceNumberUtils';
 import { sendNewApplicationToTelegram } from '../utils/telegramNotifyUtils';
+import { uploadToCloudinary } from '../utils/cloudinaryUtils';
 
 export default function RegisterModal({ 
   isOpen, 
@@ -138,12 +139,21 @@ export default function RegisterModal({
     setTimeout(() => setCopiedBank(false), 2500);
   };
 
-  // Handle Photo Upload
-  const handleFileChange = (e, setter) => {
+  // Handle Photo Upload with immediate preview and background Cloudinary upload
+  const handleFileChange = async (e, setter) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setter(url);
+      const localUrl = URL.createObjectURL(file);
+      setter(localUrl);
+
+      try {
+        const cloudUrl = await uploadToCloudinary(file);
+        if (cloudUrl) {
+          setter(cloudUrl);
+        }
+      } catch (err) {
+        console.warn('[RegisterModal] Cloudinary upload error:', err);
+      }
     }
   };
 
@@ -202,7 +212,7 @@ export default function RegisterModal({
   };
 
   // Submit Handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
@@ -235,6 +245,24 @@ export default function RegisterModal({
     const startStr = `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${startYearBe}`;
     const endStr = membershipType === '2' ? 'ตลอดชีพ' : `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${endYearBe}`;
 
+    // Ensure attached files are Cloudinary URLs
+    let finalAvatar = photoPreview;
+    if (photoPreview && photoPreview.startsWith('blob:')) {
+      finalAvatar = (await uploadToCloudinary(photoPreview)) || photoPreview;
+    }
+    let finalIdCard = idCardPreview;
+    if (idCardPreview && idCardPreview.startsWith('blob:')) {
+      finalIdCard = (await uploadToCloudinary(idCardPreview)) || idCardPreview;
+    }
+    let finalHouseReg = houseRegPreview;
+    if (houseRegPreview && houseRegPreview.startsWith('blob:')) {
+      finalHouseReg = (await uploadToCloudinary(houseRegPreview)) || houseRegPreview;
+    }
+    let finalSlip = slipPreview;
+    if (slipPreview && slipPreview.startsWith('blob:')) {
+      finalSlip = (await uploadToCloudinary(slipPreview)) || slipPreview;
+    }
+
     const newMemberRecord = {
       id: `mem-${Date.now()}`,
       callsign: chosenCallsign,
@@ -264,10 +292,10 @@ export default function RegisterModal({
       role: 'member',
       isSuperAdmin: false,
       status: 'รอตรวจสอบ',
-      avatar: photoPreview || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      idCardSlip: idCardPreview,
-      houseSlip: houseRegPreview,
-      transferSlip: slipPreview,
+      avatar: finalAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      idCardSlip: finalIdCard,
+      houseSlip: finalHouseReg,
+      transferSlip: finalSlip,
       registeredDate: `${new Date().getDate()} พ.ย. ${currentYearBe}`,
       expiryAlert: 'ปกติ'
     };

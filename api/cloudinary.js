@@ -35,9 +35,9 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     const action = body.action || 'destroy';
 
-    const cloudName = body.cloudName || process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = body.apiKey || process.env.CLOUDINARY_API_KEY;
-    const apiSecret = body.apiSecret || process.env.CLOUDINARY_API_SECRET;
+    const cloudName = body.cloudName || process.env.CLOUDINARY_CLOUD_NAME || 'dx2asgfo7';
+    const apiKey = body.apiKey || process.env.CLOUDINARY_API_KEY || '582552664161917';
+    const apiSecret = body.apiSecret || process.env.CLOUDINARY_API_SECRET || 'ykUuf9vtVOLGFV2X8Ih9pteNChc';
 
     if (!cloudName || !apiKey || !apiSecret) {
       // Graceful response when credentials are not yet saved on server

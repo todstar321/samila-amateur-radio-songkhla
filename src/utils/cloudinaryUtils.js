@@ -12,11 +12,11 @@
 export const STORAGE_KEY_CLOUDINARY = 'samila_cloudinary_settings';
 
 export const DEFAULT_CLOUDINARY_SETTINGS = {
-  cloudName: '', // e.g. "samila-radio" (from console.cloudinary.com)
-  apiKey: '',
-  apiSecret: '',
-  uploadPreset: 'samila_preset',
-  folder: 'samila_applications',
+  cloudName: 'dx2asgfo7',
+  apiKey: '582552664161917',
+  apiSecret: 'ykUuf9vtVOLGFV2X8Ih9pteNChc',
+  uploadPreset: 'samila_hs9as_preset',
+  folder: 'samila_hs9as_applications',
   autoDeleteOnDownload: true, // ลบรูปจาก Cloudinary อัตโนมัติเมื่อแอดมินดาวน์โหลดเอกสารลงเครื่อง
   retentionMonths: 6, // 3, 6, 12 months
   lastPurgedAt: null,
@@ -66,6 +66,53 @@ export async function sha1(str) {
       .join('');
   }
   return '';
+}
+
+/**
+ * Upload an image (File, Blob, or base64 dataUrl/blobUrl) to Cloudinary
+ * Uses unsigned upload preset 'samila_hs9as_preset'
+ */
+export async function uploadToCloudinary(fileOrDataUrl, customSettings = null) {
+  if (!fileOrDataUrl) return null;
+  
+  const settings = { ...DEFAULT_CLOUDINARY_SETTINGS, ...getCloudinarySettings(), ...(customSettings || {}) };
+  const cloudName = settings.cloudName || 'dx2asgfo7';
+  const uploadPreset = settings.uploadPreset || 'samila_hs9as_preset';
+  const folder = settings.folder || 'samila_hs9as_applications';
+
+  // If already an external HTTPS URL (not blob: or data:), return as-is
+  if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('http') && !fileOrDataUrl.startsWith('blob:')) {
+    return fileOrDataUrl;
+  }
+
+  try {
+    let uploadPayload = fileOrDataUrl;
+    if (typeof fileOrDataUrl === 'string' && fileOrDataUrl.startsWith('blob:')) {
+      const resp = await fetch(fileOrDataUrl);
+      uploadPayload = await resp.blob();
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadPayload);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('folder', folder);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data.secure_url || data.url;
+    } else {
+      console.warn('Cloudinary upload error:', await res.text());
+      return fileOrDataUrl;
+    }
+  } catch (err) {
+    console.warn('Cloudinary upload network error, using fallback:', err);
+    return fileOrDataUrl;
+  }
 }
 
 /**
