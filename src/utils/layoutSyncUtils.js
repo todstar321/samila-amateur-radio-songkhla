@@ -28,18 +28,33 @@ export const VALID_ADMIN_PINS = [
   '9408'  // กู้ภัยสมิหลา (HS9ORG)
 ];
 
+const CLOUDINARY_BACKUP_RAW_URL = 'https://res.cloudinary.com/dx2asgfo7/raw/upload/samila_central_layout_settings.json';
+
 /**
  * Loads layout settings with cascade:
  * 1. Server API (/api/layout-settings) -> Single source of truth for cross-device sync
- * 2. Static bundled fallback (src/data/savedLayoutSettings.json)
- * 3. LocalStorage cache
+ * 2. Cloudinary Raw CDN (Direct Global Fallback)
+ * 3. Static bundled fallback (src/data/savedLayoutSettings.json)
+ * 4. LocalStorage cache
  */
 export async function fetchCentralLayoutSettings() {
+  const syncToLocal = (serverData) => {
+    if (!serverData) return;
+    if (serverData.application) localStorage.setItem(STORAGE_KEYS.application, JSON.stringify(serverData.application));
+    if (serverData.receipt) localStorage.setItem(STORAGE_KEYS.receipt, JSON.stringify(serverData.receipt));
+    if (serverData.certificate) localStorage.setItem(STORAGE_KEYS.certificate, JSON.stringify(serverData.certificate));
+    if (serverData.receiptTierPositions) localStorage.setItem(STORAGE_KEYS.receiptTier, JSON.stringify(serverData.receiptTierPositions));
+    if (serverData.appTierPositions) localStorage.setItem(STORAGE_KEYS.appTier, JSON.stringify(serverData.appTierPositions));
+    if (serverData.templateBackgrounds) localStorage.setItem(STORAGE_KEYS.templateBackgrounds, JSON.stringify(serverData.templateBackgrounds));
+    if (serverData.meta) localStorage.setItem(STORAGE_KEYS.meta, JSON.stringify(serverData.meta));
+  };
+
+  // 1. Try Vercel Serverless API first
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
 
-    const res = await fetch('/api/layout-settings', {
+    const res = await fetch(`/api/layout-settings?t=${Date.now()}`, {
       signal: controller.signal,
       headers: { 'Cache-Control': 'no-cache' }
     });
@@ -47,35 +62,26 @@ export async function fetchCentralLayoutSettings() {
 
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData && !serverData.error) {
-        // Cache to localStorage for instant offline access
-        if (serverData.application) {
-          localStorage.setItem(STORAGE_KEYS.application, JSON.stringify(serverData.application));
-        }
-        if (serverData.receipt) {
-          localStorage.setItem(STORAGE_KEYS.receipt, JSON.stringify(serverData.receipt));
-        }
-        if (serverData.certificate) {
-          localStorage.setItem(STORAGE_KEYS.certificate, JSON.stringify(serverData.certificate));
-        }
-        if (serverData.receiptTierPositions) {
-          localStorage.setItem(STORAGE_KEYS.receiptTier, JSON.stringify(serverData.receiptTierPositions));
-        }
-        if (serverData.appTierPositions) {
-          localStorage.setItem(STORAGE_KEYS.appTier, JSON.stringify(serverData.appTierPositions));
-        }
-        if (serverData.templateBackgrounds) {
-          localStorage.setItem(STORAGE_KEYS.templateBackgrounds, JSON.stringify(serverData.templateBackgrounds));
-        }
-        if (serverData.meta) {
-          localStorage.setItem(STORAGE_KEYS.meta, JSON.stringify(serverData.meta));
-        }
+      if (serverData && !serverData.error && serverData.version) {
+        syncToLocal(serverData);
         return serverData;
       }
     }
-  } catch (err) {
-    // API not reachable or timeout, fall back to bundled JSON and localStorage
-  }
+  } catch (err) {}
+
+  // 2. Direct Cloudinary Raw CDN Fallback (Ensures 100% sync on any mobile/desktop network)
+  try {
+    const cRes = await fetch(`${CLOUDINARY_BACKUP_RAW_URL}?t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    if (cRes.ok) {
+      const cloudData = await cRes.json();
+      if (cloudData && cloudData.version) {
+        syncToLocal(cloudData);
+        return cloudData;
+      }
+    }
+  } catch (err) {}
 
   // Fallback: bundled JSON merged with localStorage
   return {

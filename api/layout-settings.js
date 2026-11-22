@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 // Valid admin PINs (last 4 digits of citizen ID)
 const VALID_ADMIN_PINS = [
@@ -15,7 +16,12 @@ const VALID_ADMIN_PINS = [
   '9408'  // ศูนย์ประสานงานวิทยุสื่อสารกู้ภัยสมิหลา (HS9ORG)
 ];
 
-export default function handler(req, res) {
+const CLOUDINARY_RAW_URL = 'https://res.cloudinary.com/dx2asgfo7/raw/upload/samila_central_layout_settings.json';
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'dx2asgfo7';
+const API_KEY = process.env.CLOUDINARY_API_KEY || '582552664161917';
+const API_SECRET = process.env.CLOUDINARY_API_SECRET || 'ykUuf9vtVOLGFV2X8Ih9pteNChc';
+
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -25,13 +31,29 @@ export default function handler(req, res) {
     return res.status(200).end();
   }
 
-  const filePath = path.join(process.cwd(), 'src', 'data', 'savedLayoutSettings.json');
+  const localFilePath = path.join(process.cwd(), 'src', 'data', 'savedLayoutSettings.json');
 
-  // 1. GET /api/layout-settings
+  // 1. GET /api/layout-settings (Cascades: Cloudinary Raw CDN -> Local File)
   if (req.method === 'GET') {
+    // 1.1 Priority: Fetch from Cloudinary Raw CDN (Real-time single source of truth across all devices)
     try {
-      if (fs.existsSync(filePath)) {
-        const raw = fs.readFileSync(filePath, 'utf-8');
+      const cRes = await fetch(`${CLOUDINARY_RAW_URL}?t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (cRes.ok) {
+        const cloudData = await cRes.json();
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.status(200).json(cloudData);
+      }
+    } catch (err) {
+      console.warn('[Vercel API] Cloudinary raw fetch failed, trying local file fallback:', err);
+    }
+
+    // 1.2 Fallback: Read local bundled JSON
+    try {
+      if (fs.existsSync(localFilePath)) {
+        const raw = fs.readFileSync(localFilePath, 'utf-8');
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.status(200).send(raw);
@@ -42,7 +64,7 @@ export default function handler(req, res) {
     return res.status(200).json({ error: 'Settings file not found' });
   }
 
-  // 2. POST /api/layout-settings
+  // 2. POST /api/layout-settings (Saves to Cloudinary CDN & Local File)
   if (req.method === 'POST') {
     try {
       const parsed = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
@@ -55,10 +77,18 @@ export default function handler(req, res) {
         });
       }
 
+      // Load existing data from Cloudinary or local file
       let existing = {};
-      if (fs.existsSync(filePath)) {
+      try {
+        const cRes = await fetch(`${CLOUDINARY_RAW_URL}?t=${Date.now()}`);
+        if (cRes.ok) {
+          existing = await cRes.json();
+        }
+      } catch (e) {}
+
+      if (!existing.version && fs.existsSync(localFilePath)) {
         try {
-          existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          existing = JSON.parse(fs.readFileSync(localFilePath, 'utf-8'));
         } catch (e) {}
       }
 
@@ -94,16 +124,52 @@ export default function handler(req, res) {
         }
       };
 
+      // 2.1 Write to Cloudinary Raw CDN Storage (Available across PC, Mobile, Tablet worldwide)
       try {
-        fs.writeFileSync(filePath, JSON.stringify(updatedData, null, 2), 'utf-8');
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const publicId = 'samila_central_layout_settings.json';
+        const params = {
+          invalidate: 'true',
+          overwrite: 'true',
+          public_id: publicId,
+          timestamp: timestamp
+        };
+        const sortedParams = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
+        const signature = crypto.createHash('sha1').update(`${sortedParams}${API_SECRET}`).digest('hex');
+
+        const jsonStr = JSON.stringify(updatedData);
+        const base64Data = 'data:text/plain;base64,' + Buffer.from(jsonStr).toString('base64');
+
+        const formData = new URLSearchParams();
+        formData.append('file', base64Data);
+        formData.append('public_id', publicId);
+        formData.append('timestamp', timestamp);
+        formData.append('api_key', API_KEY);
+        formData.append('signature', signature);
+        formData.append('overwrite', 'true');
+        formData.append('invalidate', 'true');
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        });
+        const uploadJson = await uploadRes.json();
+        console.log('[Vercel API] Saved central layout to Cloudinary:', uploadJson.secure_url);
+      } catch (cloudErr) {
+        console.error('[Vercel API] Cloudinary raw upload error:', cloudErr);
+      }
+
+      // 2.2 Try local file write (for dev server)
+      try {
+        fs.writeFileSync(localFilePath, JSON.stringify(updatedData, null, 2), 'utf-8');
       } catch (writeErr) {
-        // Read-only filesystem on serverless lambda
-        console.warn('[Vercel API] Lambda filesystem read-only:', writeErr);
+        // Ignored on serverless read-only filesystem
       }
 
       return res.status(200).json({
         success: true,
-        message: 'บันทึกการตั้งค่าพิกัดสู่ระบบสำเร็จแล้ว',
+        message: 'บันทึกการตั้งค่าพิกัดสู่ระบบกลางเรียบร้อยแล้ว (ซิงก์ PC และมือถือตรงกันทันที)',
         meta: updatedData.meta,
         version: updatedData.version,
         data: updatedData

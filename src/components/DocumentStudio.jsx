@@ -38,7 +38,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Users
 } from 'lucide-react';
 import AssociationLogo from './AssociationLogo';
 import DeveloperCredit from './DeveloperCredit';
@@ -62,6 +63,7 @@ import {
   saveCentralLayoutSettings, 
   STORAGE_KEYS 
 } from '../utils/layoutSyncUtils';
+import { uploadToCloudinary } from '../utils/cloudinaryUtils';
 import defaultSavedLayout from '../data/savedLayoutSettings.json';
 
 // Canonical A4 Paper Dimensions at 96 DPI (210mm x 297mm -> 794px x 1123px)
@@ -541,23 +543,23 @@ export default function DocumentStudio({
     return '';
   };
 
-  // Template Background Images per Document (Embedded Base64 for 100% instant zero-latency loading)
+  // Template Background Images per Document (Uses Cloudinary CDN URLs for 100% Cross-Device Sync)
   const [templateBackgrounds, setTemplateBackgrounds] = useState(() => {
     try {
       const saved = localStorage.getItem('samila_doc_template_backgrounds_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
         return {
-          application: (parsed.application && parsed.application !== '/application-form-template.jpg') ? parsed.application : DEFAULT_APP_TEMPLATE_BASE64,
-          receipt: (parsed.receipt && parsed.receipt !== '/receipt-template-sample.jpg') ? parsed.receipt : DEFAULT_RECEIPT_TEMPLATE_BASE64,
-          certificate: parsed.certificate || ''
+          application: (parsed.application && parsed.application !== '/application-form-template.jpg') ? parsed.application : (defaultSavedLayout.templateBackgrounds?.application || DEFAULT_APP_TEMPLATE_BASE64),
+          receipt: (parsed.receipt && parsed.receipt !== '/receipt-template-sample.jpg') ? parsed.receipt : (defaultSavedLayout.templateBackgrounds?.receipt || DEFAULT_RECEIPT_TEMPLATE_BASE64),
+          certificate: parsed.certificate || defaultSavedLayout.templateBackgrounds?.certificate || ''
         };
       }
     } catch (e) {}
     return {
-      application: DEFAULT_APP_TEMPLATE_BASE64,
-      receipt: DEFAULT_RECEIPT_TEMPLATE_BASE64,
-      certificate: ''
+      application: defaultSavedLayout.templateBackgrounds?.application || DEFAULT_APP_TEMPLATE_BASE64,
+      receipt: defaultSavedLayout.templateBackgrounds?.receipt || DEFAULT_RECEIPT_TEMPLATE_BASE64,
+      certificate: defaultSavedLayout.templateBackgrounds?.certificate || ''
     };
   });
 
@@ -1141,22 +1143,33 @@ export default function DocumentStudio({
     }
   };
 
-  // Upload custom background template image
-  const handleBgImageUpload = (e) => {
+  // Upload custom background template image directly to Cloudinary for cross-device sync
+  const handleBgImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        const resultUrl = uploadEvent.target.result;
+      showToast('กำลังอัปโหลดภาพพื้นหลังขึ้น Cloudinary...');
+      // 1. Immediate local preview
+      const localUrl = URL.createObjectURL(file);
+      setTemplateBackgrounds(prev => ({
+        ...prev,
+        [activeDocType]: localUrl
+      }));
+
+      try {
+        // 2. Upload to Cloudinary CDN
+        const cloudUrl = await uploadToCloudinary(file);
+        const finalUrl = cloudUrl || localUrl;
         const updated = {
           ...templateBackgrounds,
-          [activeDocType]: resultUrl
+          [activeDocType]: finalUrl
         };
         setTemplateBackgrounds(updated);
         localStorage.setItem('samila_doc_template_backgrounds_v1', JSON.stringify(updated));
-        showToast(`เปลี่ยนภาพพื้นหลังของ ${activeDocType === 'application' ? 'ใบสมัครสมาชิก' : (activeDocType === 'receipt' ? 'ใบเสร็จ' : 'หนังสือรับรอง')} เรียบร้อยแล้ว!`);
-      };
-      reader.readAsDataURL(file);
+        showToast(`อัปโหลดภาพพื้นหลังขึ้น Cloudinary สำเร็จ! กด 'บันทึกตำแหน่ง PIN' เพื่อซิงก์สู่มือถือและทุกอุปกรณ์`);
+      } catch (err) {
+        console.warn('Cloudinary upload error:', err);
+        showToast('บันทึกภาพพื้นหลังในเครื่องเรียบร้อยแล้ว');
+      }
     }
   };
 
@@ -1359,63 +1372,86 @@ export default function DocumentStudio({
         </div>
       )}
 
-      {/* Top Document Mode Navigation Bar */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap w-full md:w-auto pb-1 md:pb-0">
-          <button
-            onClick={() => { setActiveDocType('application'); setSelectedFieldKey('nameGroup'); }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
-              activeDocType === 'application'
-                ? 'bg-sky-700 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>ใบสมัครสมาชิก (Application Form)</span>
-          </button>
+      {/* Top Document Mode Navigation Bar (Redesigned with Clear Tabs & Separate Row for Member Preview) */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3.5">
+        
+        {/* ROW 1: Dedicated Document Selection Tabs */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              เลือกเอกสารที่ต้องการออกแบบและจัดวางตำแหน่ง:
+            </span>
+            <span className="text-[11.5px] font-semibold text-slate-600 hidden sm:inline">
+              {activeDocType === 'application' && '📄 กำลังแก้ไข: แบบคำขอสมัครสมาชิกสมาคมฯ'}
+              {activeDocType === 'receipt' && '🧾 กำลังแก้ไข: ใบเสร็จรับเงิน (e-Receipt)'}
+              {activeDocType === 'certificate' && '📜 กำลังแก้ไข: หนังสือรับรองสถานะสมาชิกภาพ'}
+              {activeDocType === 'signatures' && '✍️ กำลังจัดการ: คลังลายเซ็นดิจิทัล'}
+            </span>
+          </div>
 
-          <button
-            onClick={() => { setActiveDocType('receipt'); setSelectedFieldKey('receiptDateGroup'); }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
-              activeDocType === 'receipt'
-                ? 'bg-emerald-700 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            <span>ใบเสร็จรับเงิน (Official Receipt)</span>
-          </button>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <button
+              type="button"
+              onClick={() => { setActiveDocType('application'); setSelectedFieldKey('nameGroup'); }}
+              className={`p-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 border ${
+                activeDocType === 'application'
+                  ? 'bg-sky-700 text-white border-sky-800 shadow-md ring-2 ring-sky-300'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <FileText className="w-4 h-4 shrink-0" />
+              <span className="truncate">1. ใบสมัครสมาชิก</span>
+            </button>
 
-          <button
-            onClick={() => { setActiveDocType('certificate'); setSelectedFieldKey('certDateGroup'); }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
-              activeDocType === 'certificate'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>หนังสือรับรองสมาคม (Certificate)</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => { setActiveDocType('receipt'); setSelectedFieldKey('receiptDateGroup'); }}
+              className={`p-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 border ${
+                activeDocType === 'receipt'
+                  ? 'bg-emerald-700 text-white border-emerald-800 shadow-md ring-2 ring-emerald-300'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <Receipt className="w-4 h-4 shrink-0" />
+              <span className="truncate">2. ใบเสร็จรับเงิน</span>
+            </button>
 
-          <button
-            onClick={() => setActiveDocType('signatures')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 shrink-0 whitespace-nowrap ${
-              activeDocType === 'signatures'
-                ? 'bg-purple-700 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <PenTool className="w-4 h-4" />
-            <span>คลังลายเซ็นดิจิทัล (Signature Vault)</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => { setActiveDocType('certificate'); setSelectedFieldKey('certDateGroup'); }}
+              className={`p-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 border ${
+                activeDocType === 'certificate'
+                  ? 'bg-amber-600 text-white border-amber-700 shadow-md ring-2 ring-amber-300'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <Award className="w-4 h-4 shrink-0" />
+              <span className="truncate">3. หนังสือรับรอง</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveDocType('signatures')}
+              className={`p-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 border ${
+                activeDocType === 'signatures'
+                  ? 'bg-purple-700 text-white border-purple-800 shadow-md ring-2 ring-purple-300'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <PenTool className="w-4 h-4 shrink-0" />
+              <span className="truncate">4. คลังลายเซ็น</span>
+            </button>
+          </div>
         </div>
 
-        {/* Member Selector for Preview */}
+        {/* ROW 2: Member Selector for Preview & Sequence Badges (On a Clean Separate Row) */}
         {activeDocType !== 'signatures' && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs w-full md:w-auto pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-slate-500 font-medium whitespace-nowrap shrink-0">ดูตัวอย่างด้วยข้อมูลสมาชิก:</span>
+          <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
+              <span className="text-slate-600 font-bold whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-sky-600" />
+                <span>ดูตัวอย่างด้วยข้อมูลสมาชิก:</span>
+              </span>
               <select
                 value={selectedMemberId}
                 onChange={(e) => {
@@ -1454,7 +1490,7 @@ export default function DocumentStudio({
                     }
                   }
                 }}
-                className="w-full sm:w-auto px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                className="w-full sm:flex-1 px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 transition cursor-pointer focus:ring-2 focus:ring-sky-500"
               >
                 {membersList.map(m => (
                   <option key={m.id} value={m.id}>
@@ -1465,7 +1501,7 @@ export default function DocumentStudio({
             </div>
 
             {/* Sequence Status Badges & Settings Trigger */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs w-full sm:w-auto">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs w-full sm:w-auto shrink-0">
               <div className="flex items-center gap-1.5 font-mono text-xs shrink-0 whitespace-nowrap" title="รหัสสมาชิกที่จะแสดงในเอกสารทุกฉบับ">
                 <span className="text-slate-500 font-sans font-medium text-[11px]">รหัสสมาชิก:</span>
                 <span className="font-bold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-md border border-sky-200">
