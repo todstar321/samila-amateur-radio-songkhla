@@ -268,16 +268,40 @@ export async function sendTelegramMessage(text, options = {}) {
 }
 
 /**
- * Send a single photo with optional caption
+ * Send a document/file (works with any MIME type including SVG, PDF, images)
+ */
+export async function sendTelegramDocument(docBlob, caption = '', options = {}) {
+  const formData = new FormData();
+  formData.append('document', docBlob, options.filename || 'document.png');
+  if (caption) {
+    formData.append('caption', caption);
+    formData.append('parse_mode', options.parse_mode || 'HTML');
+  }
+  return await sendTelegramRequest('sendDocument', formData, true, options.botToken, options.chatId);
+}
+
+/**
+ * Send a single photo with optional caption (auto-routes to sendDocument if SVG or if sendPhoto fails)
  */
 export async function sendTelegramPhoto(photoBlob, caption = '', options = {}) {
+  if (!photoBlob) return { ok: false, description: 'No photo provided' };
+  
+  if (photoBlob.type && photoBlob.type.includes('svg')) {
+    return await sendTelegramDocument(photoBlob, caption, options);
+  }
+
   const formData = new FormData();
   formData.append('photo', photoBlob, options.filename || 'photo.png');
   if (caption) {
     formData.append('caption', caption);
     formData.append('parse_mode', options.parse_mode || 'HTML');
   }
-  return await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
+  const res = await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
+  if (!res.ok) {
+    console.warn('[Telegram] sendPhoto failed, falling back to sendDocument:', res.description);
+    return await sendTelegramDocument(photoBlob, caption, options);
+  }
+  return res;
 }
 
 /**
@@ -287,39 +311,44 @@ export async function sendTelegramMediaGroup(mediaItems, options = {}) {
   // mediaItems: array of { blob: Blob, caption?: string, filename?: string }
   if (!mediaItems || mediaItems.length === 0) return { ok: false, description: 'No media items provided' };
 
-  try {
-    const formData = new FormData();
-    const mediaArray = [];
+  // Check if any items are SVG. If so, convert them or skip sendMediaGroup
+  const hasSvg = mediaItems.some(i => i.blob && i.blob.type && i.blob.type.includes('svg'));
 
-    mediaItems.slice(0, 10).forEach((item, index) => {
-      const attachKey = `file_${index}`;
-      formData.append(attachKey, item.blob, item.filename || `file_${index}.png`);
-      
-      const mediaEntry = {
-        type: 'photo',
-        media: `attach://${attachKey}`
-      };
-      if (item.caption) {
-        mediaEntry.caption = item.caption;
-        mediaEntry.parse_mode = 'HTML';
-      }
-      mediaArray.push(mediaEntry);
-    });
+  if (!hasSvg) {
+    try {
+      const formData = new FormData();
+      const mediaArray = [];
 
-    formData.append('media', JSON.stringify(mediaArray));
+      mediaItems.slice(0, 10).forEach((item, index) => {
+        const attachKey = `file_${index}`;
+        formData.append(attachKey, item.blob, item.filename || `file_${index}.png`);
+        
+        const mediaEntry = {
+          type: 'photo',
+          media: `attach://${attachKey}`
+        };
+        if (item.caption) {
+          mediaEntry.caption = item.caption;
+          mediaEntry.parse_mode = 'HTML';
+        }
+        mediaArray.push(mediaEntry);
+      });
 
-    const result = await sendTelegramRequest('sendMediaGroup', formData, true, options.botToken, options.chatId);
-    if (result.ok) return result;
+      formData.append('media', JSON.stringify(mediaArray));
 
-    console.warn('[Telegram] sendMediaGroup failed, falling back to sequential sendPhoto:', result.description);
-  } catch (e) {
-    console.warn('[Telegram] sendMediaGroup error, falling back:', e);
+      const result = await sendTelegramRequest('sendMediaGroup', formData, true, options.botToken, options.chatId);
+      if (result.ok) return result;
+
+      console.warn('[Telegram] sendMediaGroup failed, falling back to sequential sendPhoto:', result.description);
+    } catch (e) {
+      console.warn('[Telegram] sendMediaGroup error, falling back:', e);
+    }
   }
 
   // Fallback: send each photo sequentially
   let successCount = 0;
   for (const item of mediaItems) {
-    const res = await sendTelegramPhoto(item.blob, item.caption || '', options);
+    const res = await sendTelegramPhoto(item.blob, item.caption || '', { ...options, filename: item.filename });
     if (res.ok) successCount++;
     await new Promise(r => setTimeout(r, 400));
   }
@@ -400,8 +429,11 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     timeStyle: 'short'
   }).format(new Date());
 
-  const callsignDisplay = m.callsign && m.callsign !== '-' ? m.callsign : 'รอขอรับสัญญาณเรียกขาน (สอบผ่านแล้ว)';
+  const callsignDetail = m.callsignType === 'has' 
+    ? (m.callsignSubStatus === 'expired' ? `${m.callsign} (นามเรียกขานขาดอายุแล้ว)` : `${m.callsign} (นามเรียกขานปัจจุบัน)`)
+    : 'สมัครเพื่อขอรับสัญญาณเรียกขาน (สอบผ่านแล้ว/ครั้งแรก)';
   const feeText = (m.memberType || '').includes('ตลอดชีพ') ? '2,500 บาท (ตลอดชีพ)' : '500 บาท (5 ปี)';
+  const receiptInfo = getCurrentReceiptInfo();
 
   // 1. Text Announcement
   const textMsg = `
@@ -410,11 +442,12 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
 ━━━━━━━━━━━━━━━━━━━━
 👤 <b>ชื่อ-นามสกุล:</b> ${escapeHtml(m.fullName)}
 🔤 <b>Name (EN):</b> ${escapeHtml(m.nameEnglish || '-')}
-📻 <b>สัญญาณเรียกขาน:</b> <b>${escapeHtml(callsignDisplay)}</b>
+📻 <b>สถานะนามเรียกขาน:</b> <b>${escapeHtml(callsignDetail)}</b>
 🪪 <b>เลขประจำตัวประชาชน:</b> <code>${escapeHtml(m.citizenId || '-')}</code>
 🎂 <b>วันเดือนปีเกิด:</b> ${escapeHtml(m.birthDate || '-')} (อายุ ${escapeHtml(m.age || '-')} ปี)
 🎖 <b>ประเภทสมาชิก:</b> ${escapeHtml(m.memberType || 'สมาชิกสามัญ 5 ปี')}
-💰 <b>ค่าธรรมเนียม:</b> ${escapeHtml(feeText)}
+💰 <b>ค่าบำรุงสมาชิก:</b> ${escapeHtml(feeText)}
+🧾 <b>เลขที่ใบเสร็จ:</b> เล่ม ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo}
 📞 <b>เบอร์โทรศัพท์:</b> <a href="tel:${escapeHtml(m.phone)}">${escapeHtml(m.phone)}</a>
 💬 <b>LINE ID:</b> ${escapeHtml(m.lineId || '-')}
 📧 <b>อีเมล:</b> ${escapeHtml(m.email || '-')}
@@ -422,92 +455,131 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
 📮 <b>ที่อยู่ตามทะเบียนบ้าน:</b> ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}
 📅 <b>วันที่ยื่นสมัคร:</b> ${escapeHtml(m.registeredDate || nowThai)}
 ━━━━━━━━━━━━━━━━━━━━
-📎 <i>กำลังส่งภาพหลักฐานที่แนบมาทั้งหมดเข้าสู่กลุ่ม Telegram...</i>
+📑 <i>ระบบส่งภาพเอกสารทางการ (ใบสมัคร, ใบเสร็จรับเงิน, หนังสือรับรอง) และหลักฐานประกอบเข้ากลุ่มด้านล่าง:</i>
 `.trim();
 
   // Send summary text first
   await sendTelegramMessage(textMsg, { botToken: settings.botToken, chatId: settings.chatId });
 
-  // 2. Prepare Attached Media / Photos
   if (!settings.sendPhotosWithRegister) {
     return { ok: true, message: 'Application text sent' };
   }
 
-  const mediaList = [];
+  // 2. ALBUM 1: OFFICIAL DOCUMENTS (ใบสมัคร, ใบเสร็จรับเงิน, หนังสือรับรองสมาชิกภาพ/ขอใบอนุญาต)
+  const officialDocsList = [];
 
-  // 2.1 Photo Avatar (1 inch)
-  let avatarBlob = await dataUrlToBlob(m.avatar);
-  if (avatarBlob) {
-    mediaList.push({
-      blob: avatarBlob,
-      filename: `01_รูปถ่าย1นิ้ว_${m.fullName}.jpg`,
-      caption: `1️⃣ <b>รูปถ่ายหน้าตรง 1 นิ้ว</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
-    });
-  }
-
-  // 2.2 Citizen ID Card Slip
-  let idCardBlob = await dataUrlToBlob(m.idCardSlip);
-  if (!idCardBlob) {
-    const idCardSvg = generateCitizenIdCardSvg(m);
-    idCardBlob = await svgToPngBlob(idCardSvg, 1200, 750);
-  }
-  if (idCardBlob) {
-    mediaList.push({
-      blob: idCardBlob,
-      filename: `02_สำเนาบัตรประชาชน_${m.fullName}.png`,
-      caption: `2️⃣ <b>สำเนาบัตรประจำตัวประชาชน</b>\nเลขที่: <code>${escapeHtml(m.citizenId)}</code>`
-    });
-  }
-
-  // 2.3 House Registration Slip
-  let houseBlob = await dataUrlToBlob(m.houseSlip);
-  if (!houseBlob) {
-    const houseSvg = generateHouseRegistrationSvg(m);
-    houseBlob = await svgToPngBlob(houseSvg, 1200, 975);
-  }
-  if (houseBlob) {
-    mediaList.push({
-      blob: houseBlob,
-      filename: `03_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
-      caption: `3️⃣ <b>สำเนาทะเบียนบ้าน</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
-    });
-  }
-
-  // 2.4 Bank Transfer Slip
-  let transferBlob = await dataUrlToBlob(m.transferSlip);
-  if (!transferBlob) {
-    const slipSvg = generateBankSlipSvg(m);
-    transferBlob = await svgToPngBlob(slipSvg, 900, 1275);
-  }
-  if (transferBlob) {
-    mediaList.push({
-      blob: transferBlob,
-      filename: `04_สลิปโอนเงิน_${m.fullName}.png`,
-      caption: `4️⃣ <b>หลักฐานการโอนเงินค่าบำรุงสมาชิก</b>\nจำนวน: ${escapeHtml(feeText)}`
-    });
-  }
-
-  // 2.5 Complete Application Form Document
+  // 2.1 Complete Application Form Document (ดึงข้อมูลจริง)
   try {
-    const appSvg = generateApplicationFormSvg(m);
+    const appSvg = generateApplicationFormSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
     const appBlob = await svgToPngBlob(appSvg, 1200, 1695);
     if (appBlob) {
-      mediaList.push({
+      officialDocsList.push({
         blob: appBlob,
-        filename: `05_ใบสมัครสมาชิก_${m.fullName}.png`,
-        caption: `5️⃣ <b>ใบสมัครสมาชิกสมาคม (Form Doc)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา HS9AS`
+        filename: `01_ใบสมัครสมาชิก_${m.fullName}.png`,
+        caption: `📄 <b>1. ใบสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)</b>\nผู้สมัคร: ${escapeHtml(m.fullName)} • นามเรียกขาน: ${escapeHtml(m.callsign || 'ขอรับใหม่')}`
       });
     }
   } catch (e) {
     console.warn('App form render error:', e);
   }
 
-  // Send media group or individual photos
-  if (mediaList.length > 0) {
-    await sendTelegramMediaGroup(mediaList, { botToken: settings.botToken, chatId: settings.chatId });
+  // 2.2 Official Receipt (e-Receipt - ดึงข้อมูลจริงและเล่มที่/เลขที่จริง)
+  try {
+    const receiptSvg = generateReceiptSvg(m, receiptInfo, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 816);
+    if (receiptBlob) {
+      officialDocsList.push({
+        blob: receiptBlob,
+        filename: `02_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
+        caption: `🧾 <b>2. ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • ค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
+      });
+    }
+  } catch (e) {
+    console.warn('Receipt render error:', e);
   }
 
-  return { ok: true, mediaCount: mediaList.length };
+  // 2.3 Official Certificate of Membership / Permit Recommendation (ดึงข้อมูลจริง)
+  try {
+    const certSvg = generateCertificateSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    const certBlob = await svgToPngBlob(certSvg, 1200, 1707);
+    if (certBlob) {
+      officialDocsList.push({
+        blob: certBlob,
+        filename: `03_หนังสือรับรองสมาชิก_${m.fullName}.png`,
+        caption: `📜 <b>3. หนังสือรับรองสถานะสมาชิกภาพสมาคม (Certificate)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS) • สมาชิกเลขที่ ${escapeHtml(m.memberId || '30001')}`
+      });
+    }
+  } catch (e) {
+    console.warn('Certificate render error:', e);
+  }
+
+  // Send Album 1 (Official Documents)
+  if (officialDocsList.length > 0) {
+    await sendTelegramMediaGroup(officialDocsList, { botToken: settings.botToken, chatId: settings.chatId });
+    await new Promise(r => setTimeout(r, 600));
+  }
+
+  // 3. ALBUM 2: ATTACHED APPLICANT EVIDENCE (รูปถ่าย, สำเนาบัตร, ทะเบียนบ้าน, สลิปโอนเงิน)
+  const evidenceList = [];
+
+  // 3.1 Photo Avatar (1 inch)
+  let avatarBlob = await dataUrlToBlob(m.avatar);
+  if (avatarBlob) {
+    evidenceList.push({
+      blob: avatarBlob,
+      filename: `04_รูปถ่าย1นิ้ว_${m.fullName}.jpg`,
+      caption: `👤 <b>4. รูปถ่ายหน้าตรง 1 นิ้ว</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+    });
+  }
+
+  // 3.2 Citizen ID Card Slip (ดึงข้อมูลจริง)
+  let idCardBlob = await dataUrlToBlob(m.idCardSlip);
+  if (!idCardBlob) {
+    const idCardSvg = generateCitizenIdCardSvg(m);
+    idCardBlob = await svgToPngBlob(idCardSvg, 1200, 750);
+  }
+  if (idCardBlob) {
+    evidenceList.push({
+      blob: idCardBlob,
+      filename: `05_สำเนาบัตรประชาชน_${m.fullName}.png`,
+      caption: `🪪 <b>5. สำเนาบัตรประจำตัวประชาชน</b>\nเลขที่: <code>${escapeHtml(m.citizenId)}</code>`
+    });
+  }
+
+  // 3.3 House Registration Slip (ดึงข้อมูลจริง)
+  let houseBlob = await dataUrlToBlob(m.houseSlip);
+  if (!houseBlob) {
+    const houseSvg = generateHouseRegistrationSvg(m);
+    houseBlob = await svgToPngBlob(houseSvg, 1200, 975);
+  }
+  if (houseBlob) {
+    evidenceList.push({
+      blob: houseBlob,
+      filename: `06_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
+      caption: `🏠 <b>6. สำเนาทะเบียนบ้าน</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+    });
+  }
+
+  // 3.4 Bank Transfer Slip (ดึงข้อมูลจริง)
+  let transferBlob = await dataUrlToBlob(m.transferSlip);
+  if (!transferBlob) {
+    const slipSvg = generateBankSlipSvg(m);
+    transferBlob = await svgToPngBlob(slipSvg, 900, 1275);
+  }
+  if (transferBlob) {
+    evidenceList.push({
+      blob: transferBlob,
+      filename: `07_สลิปโอนเงิน_${m.fullName}.png`,
+      caption: `💸 <b>7. หลักฐานการโอนเงินค่าบำรุงสมาชิก</b>\nจำนวน: ${escapeHtml(feeText)}`
+    });
+  }
+
+  // Send Album 2 (Evidence attachments)
+  if (evidenceList.length > 0) {
+    await sendTelegramMediaGroup(evidenceList, { botToken: settings.botToken, chatId: settings.chatId });
+  }
+
+  return { ok: true, docCount: officialDocsList.length, evidenceCount: evidenceList.length };
 }
 
 /**

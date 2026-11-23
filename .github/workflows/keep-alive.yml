@@ -19,10 +19,10 @@ jobs:
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://hs9as.vercel.app)
           echo "HTTP Status: $STATUS"
 
-      - name: Trigger Daily Keep-Alive & Telegram Heartbeat
+      - name: Trigger Daily Keep-Alive Anti-Sleep Engine (Quiet Mode)
         run: |
-          echo "Triggering Keep-Alive API..."
-          RESPONSE=$(curl -s "https://hs9as.vercel.app/api/keep-alive")
+          echo "Triggering Keep-Alive API (quiet mode, no telegram spam)..."
+          RESPONSE=$(curl -s "https://hs9as.vercel.app/api/keep-alive?notify=false")
           echo "Response: $RESPONSE"
 
       - name: Ping Backend Services

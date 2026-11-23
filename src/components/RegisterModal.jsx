@@ -48,7 +48,8 @@ export default function RegisterModal({
 
   // Form Fields
   // Step 1: Callsign Status
-  const [callsignType, setCallsignType] = useState('new'); // 'new' (รอขอรับ), 'has' (มีสัญญาณเรียกขานแล้ว)
+  const [callsignType, setCallsignType] = useState('new'); // 'new' (สมัครเพื่อขอรับสัญญาณเรียกขาน), 'has' (มีนามเรียกขานอยู่แล้ว)
+  const [callsignSubStatus, setCallsignSubStatus] = useState(''); // 'current' (นามเรียกขานปัจจุบัน), 'expired' (นามเรียกขานขาดอายุแล้ว)
   const [callsign, setCallsign] = useState('');
 
   // Step 2: Personal Information
@@ -163,18 +164,52 @@ export default function RegisterModal({
     setErrorMessage('');
 
     if (currentStep === 1) {
-      if (callsignType === 'has' && !callsign.trim()) {
-        setErrorMessage('กรุณาระบุสัญญาณเรียกขานของท่าน (Callsign)');
-        return;
+      if (callsignType === 'has') {
+        if (!callsignSubStatus) {
+          setErrorMessage('กรุณาเลือกสถานะนามเรียกขาน (นามเรียกขานปัจจุบัน หรือ นามเรียกขานขาดอายุแล้ว)');
+          return;
+        }
+        if (!callsign.trim()) {
+          setErrorMessage('กรุณาระบุสัญญาณเรียกขานของท่าน (Callsign)');
+          return;
+        }
       }
     } else if (currentStep === 2) {
+      if (prefix === 'อื่นๆ' && !customPrefix.trim()) {
+        setErrorMessage('กรุณาระบุคำนำหน้าชื่อ');
+        return;
+      }
       if (!fullNameTh.trim()) {
-        setErrorMessage('กรุณาระบุชื่อ-นามสกุล ภาษาไทย');
+        setErrorMessage('กรุณาระบุชื่อ-นามสกุล (ภาษาไทย)');
+        return;
+      }
+      if (!fullNameEn.trim()) {
+        setErrorMessage('กรุณาระบุ First Name - Last Name (ภาษาอังกฤษ)');
         return;
       }
       const cleanCitizen = citizenId.replace(/\D/g, '');
-      if (!cleanCitizen || cleanCitizen.length < 13) {
+      if (!cleanCitizen || cleanCitizen.length !== 13) {
         setErrorMessage('กรุณาระบุเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง');
+        return;
+      }
+      if (!citizenIssueDate || !citizenIssueDate.trim()) {
+        setErrorMessage('กรุณาระบุวันออกบัตรประชาชน');
+        return;
+      }
+      if (!citizenExpiryDate || !citizenExpiryDate.trim()) {
+        setErrorMessage('กรุณาระบุวันบัตรหมดอายุ');
+        return;
+      }
+      if (!birthDate || !birthDate.trim()) {
+        setErrorMessage('กรุณาระบุวัน/เดือน/ปีเกิด (พ.ศ.)');
+        return;
+      }
+      if (!gender) {
+        setErrorMessage('กรุณาระบุเพศ');
+        return;
+      }
+      if (!maritalStatus) {
+        setErrorMessage('กรุณาระบุสถานภาพสมรส');
         return;
       }
     } else if (currentStep === 3) {
@@ -182,8 +217,18 @@ export default function RegisterModal({
         setErrorMessage('กรุณาระบุที่อยู่ปัจจุบันที่สามารถติดต่อได้');
         return;
       }
-      if (!phone.trim()) {
-        setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อ');
+      const cleanPostal = postalCode.replace(/\D/g, '');
+      if (!cleanPostal || cleanPostal.length !== 5) {
+        setErrorMessage('กรุณาระบุรหัสไปรษณีย์ 5 หลักให้ถูกต้อง');
+        return;
+      }
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (!cleanPhone || cleanPhone.length < 9) {
+        setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
+        return;
+      }
+      if (!sameAsCurrent && !registeredAddress.trim()) {
+        setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');
         return;
       }
     }
@@ -216,28 +261,72 @@ export default function RegisterModal({
     e.preventDefault();
     setErrorMessage('');
 
+    if (callsignType === 'has') {
+      if (!callsignSubStatus) {
+        setErrorMessage('กรุณาเลือกสถานะนามเรียกขาน');
+        setCurrentStep(1);
+        return;
+      }
+      if (!callsign.trim()) {
+        setErrorMessage('กรุณาระบุสัญญาณเรียกขานของท่าน (Callsign)');
+        setCurrentStep(1);
+        return;
+      }
+    }
+    if (prefix === 'อื่นๆ' && !customPrefix.trim()) {
+      setErrorMessage('กรุณาระบุคำนำหน้าชื่อ');
+      setCurrentStep(2);
+      return;
+    }
     if (!fullNameTh.trim()) {
-      setErrorMessage('กรุณาระบุชื่อ-นามสกุล ภาษาไทย');
+      setErrorMessage('กรุณาระบุชื่อ-นามสกุล (ภาษาไทย)');
+      setCurrentStep(2);
+      return;
+    }
+    if (!fullNameEn.trim()) {
+      setErrorMessage('กรุณาระบุ First Name - Last Name (ภาษาอังกฤษ)');
       setCurrentStep(2);
       return;
     }
     const cleanCitizen = citizenId.replace(/\D/g, '');
-    if (!cleanCitizen || cleanCitizen.length < 13) {
+    if (!cleanCitizen || cleanCitizen.length !== 13) {
       setErrorMessage('กรุณาระบุเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง');
       setCurrentStep(2);
       return;
     }
-    if (!phone.trim()) {
-      setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อ');
+    if (!citizenIssueDate.trim() || !citizenExpiryDate.trim() || !birthDate.trim()) {
+      setErrorMessage('กรุณาระบุข้อมูลวันที่ให้ครบถ้วน');
+      setCurrentStep(2);
+      return;
+    }
+    if (!currentAddress.trim()) {
+      setErrorMessage('กรุณาระบุที่อยู่ปัจจุบันที่สามารถติดต่อได้');
+      setCurrentStep(3);
+      return;
+    }
+    const cleanPostal = postalCode.replace(/\D/g, '');
+    if (!cleanPostal || cleanPostal.length !== 5) {
+      setErrorMessage('กรุณาระบุรหัสไปรษณีย์ 5 หลักให้ถูกต้อง');
+      setCurrentStep(3);
+      return;
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 9) {
+      setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
+      setCurrentStep(3);
+      return;
+    }
+    if (!sameAsCurrent && !registeredAddress.trim()) {
+      setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');
       setCurrentStep(3);
       return;
     }
 
     const cleanLast4 = cleanCitizen.slice(-4);
     const chosenCallsign = callsignType === 'has' && callsign.trim() ? callsign.trim().toUpperCase() : '-';
-    const effectivePrefix = prefix === 'อื่นๆ' ? customPrefix : prefix;
+    const effectivePrefix = prefix === 'อื่นๆ' ? customPrefix.trim() : prefix;
     const finalFullName = `${effectivePrefix} ${fullNameTh.trim()}`.trim();
-    const finalRegisteredAddr = sameAsCurrent ? currentAddress : (registeredAddress || currentAddress);
+    const finalRegisteredAddr = sameAsCurrent ? currentAddress.trim() : (registeredAddress.trim() || currentAddress.trim());
 
     // Calculate dates
     const startYearBe = currentYearBe;
@@ -266,26 +355,32 @@ export default function RegisterModal({
     const newMemberRecord = {
       id: `mem-${Date.now()}`,
       callsign: chosenCallsign,
+      callsignType: callsignType,
+      callsignSubStatus: callsignType === 'has' ? callsignSubStatus : null,
+      formerCallsign: callsignType === 'has' ? (callsignSubStatus === 'expired' ? callsign.trim().toUpperCase() : '-') : '-',
       username: chosenCallsign !== '-' ? chosenCallsign.toLowerCase() : phone.replace(/\D/g, ''),
       fullName: finalFullName,
-      nameEnglish: fullNameEn || '',
+      prefix: effectivePrefix,
+      nameEnglish: fullNameEn.trim(),
       citizenId: cleanCitizen,
       last4Id: cleanLast4,
-      citizenIssueDate: citizenIssueDate || '10/05/2569',
-      citizenExpiryDate: citizenExpiryDate || '09/05/2579',
-      birthDate: birthDate || `${birthDay.padStart(2, '0')}/${birthMonth.padStart(2, '0')}/${birthYearBe}`,
+      citizenIssueDate: citizenIssueDate.trim() || '10/05/2569',
+      citizenExpiryDate: citizenExpiryDate.trim() || '09/05/2579',
+      birthDate: birthDate.trim() || `${birthDay.padStart(2, '0')}/${birthMonth.padStart(2, '0')}/${birthYearBe}`,
       age: calculatedAge,
       gender: gender,
       maritalStatus: maritalStatus,
+      postalCode: cleanPostal,
       phone: phone.trim(),
       email: email.trim(),
       lineId: lineId.trim(),
       memberId: consumeMemberId(),
       memberType: selectedTier.name === 'สามัญ 5 ปี' ? 'สมาชิกสามัญ 5 ปี' : selectedTier.name,
+      membershipTierKey: membershipType,
       startDate: startStr,
       endDate: endStr,
       registeredAddress: finalRegisteredAddr,
-      currentAddress: currentAddress,
+      currentAddress: currentAddress.trim(),
       deNetworkCode: null,
       radioStandby: '145.6750 MHz',
       memberStatus: 'ปกติ (Active)',
@@ -471,12 +566,15 @@ export default function RegisterModal({
                           type="radio"
                           name="callsignType"
                           checked={callsignType === 'new'}
-                          onChange={() => setCallsignType('new')}
+                          onChange={() => {
+                            setCallsignType('new');
+                            setCallsignSubStatus('');
+                          }}
                           className="w-4 h-4 text-sky-600 focus:ring-sky-500"
                         />
                         <div>
                           <span className="block text-xs font-bold">สมัครเพื่อขอรับสัญญาณเรียกขาน</span>
-                          <span className="block text-[11px] text-slate-500 font-normal mt-0.5">(สอบผ่านแล้ว รอสมาคมออกหนังสือรับรอง)</span>
+                          <span className="block text-[11px] text-slate-500 font-normal mt-0.5">(สอบผ่านแล้ว / นามเรียกขานครั้งแรก)</span>
                         </div>
                       </label>
 
@@ -493,25 +591,75 @@ export default function RegisterModal({
                           className="w-4 h-4 text-sky-600 focus:ring-sky-500"
                         />
                         <div>
-                          <span className="block text-xs font-bold">มีสัญญาณเรียกขานแล้ว</span>
-                          <span className="block text-[11px] text-slate-500 font-normal mt-0.5">(Callsign เดิม/ใหม่ จาก กสทช.)</span>
+                          <span className="block text-xs font-bold">มีนามเรียกขานอยู่แล้ว</span>
+                          <span className="block text-[11px] text-slate-500 font-normal mt-0.5">(กรณี นามเรียกขานปกติ และขาดอายุ)</span>
                         </div>
                       </label>
                     </div>
 
                     {callsignType === 'has' && (
-                      <div className="pt-2 animate-in fade-in">
-                        <label className="block text-xs font-semibold text-slate-800 mb-1">
-                          สัญญาณเรียกขานของท่าน (Callsign) <span className="text-rose-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="เช่น HS9xxx หรือ E26xxx"
-                          value={callsign}
-                          onChange={(e) => setCallsign(e.target.value.toUpperCase())}
-                          className="w-full px-3.5 py-2.5 bg-white border border-sky-300 rounded-xl text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-sky-500 outline-none shadow-xs"
-                          autoFocus
-                        />
+                      <div className="pt-2 space-y-3 animate-in fade-in">
+                        {/* Sub-question: เพิ่มคำถามสถานะนามเรียกขาน */}
+                        <div className="p-3.5 bg-white rounded-xl border border-sky-200 shadow-2xs space-y-2">
+                          <label className="block text-xs font-bold text-slate-900">
+                            สถานะนามเรียกขานของท่าน <span className="text-rose-500">*</span>
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <label className={`p-3 rounded-lg border flex items-center gap-2.5 cursor-pointer transition ${
+                              callsignSubStatus === 'current'
+                                ? 'bg-sky-50 border-sky-500 text-sky-950 font-bold ring-2 ring-sky-300 shadow-xs'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="callsignSubStatus"
+                                value="current"
+                                checked={callsignSubStatus === 'current'}
+                                onChange={() => setCallsignSubStatus('current')}
+                                className="w-4 h-4 text-sky-600 focus:ring-sky-500"
+                              />
+                              <div>
+                                <span className="block text-xs font-bold">นามเรียกขานปัจจุบัน</span>
+                                <span className="block text-[10px] text-slate-500 font-normal">กรณีใช้งานปกติ ยังไม่ขาดอายุ</span>
+                              </div>
+                            </label>
+
+                            <label className={`p-3 rounded-lg border flex items-center gap-2.5 cursor-pointer transition ${
+                              callsignSubStatus === 'expired'
+                                ? 'bg-amber-50 border-amber-500 text-amber-950 font-bold ring-2 ring-amber-300 shadow-xs'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="callsignSubStatus"
+                                value="expired"
+                                checked={callsignSubStatus === 'expired'}
+                                onChange={() => setCallsignSubStatus('expired')}
+                                className="w-4 h-4 text-amber-600 focus:ring-amber-500"
+                              />
+                              <div>
+                                <span className="block text-xs font-bold">นามเรียกขานขาดอายุแล้ว</span>
+                                <span className="block text-[10px] text-slate-500 font-normal">กรณีใบอนุญาตขาดอายุ / ขอคืนสัญญาณเดิม</span>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Callsign Input */}
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-800 mb-1">
+                            สัญญาณเรียกขานของท่าน (Callsign) <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น HS9XXX หรือ E26XXX"
+                            value={callsign}
+                            onChange={(e) => setCallsign(e.target.value.toUpperCase())}
+                            className="w-full px-3.5 py-2.5 bg-white border border-sky-300 rounded-xl text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-sky-500 outline-none shadow-xs"
+                            autoFocus
+                            required
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -563,7 +711,7 @@ export default function RegisterModal({
                       {prefix === 'อื่นๆ' && (
                         <div className="col-span-12 sm:col-span-3">
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            ระบุคำนำหน้า
+                            ระบุคำนำหน้า <span className="text-rose-500">*</span>
                           </label>
                           <input
                             type="text"
@@ -571,6 +719,7 @@ export default function RegisterModal({
                             onChange={(e) => setCustomPrefix(e.target.value)}
                             placeholder="ระบุคำนำหน้า"
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white outline-none"
+                            required
                           />
                         </div>
                       )}
@@ -594,7 +743,7 @@ export default function RegisterModal({
                     {/* English Name Row */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        First Name - Last Name (ภาษาอังกฤษ)
+                        First Name - Last Name (ภาษาอังกฤษ) <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -602,6 +751,7 @@ export default function RegisterModal({
                         value={fullNameEn}
                         onChange={(e) => setFullNameEn(e.target.value)}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:bg-white outline-none font-mono"
+                        required
                       />
                     </div>
 
@@ -624,7 +774,7 @@ export default function RegisterModal({
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                          <span>วันออกบัตรประชาชน</span>
+                          <span>วันออกบัตรประชาชน <span className="text-rose-500">*</span></span>
                           <span className="text-[10px] text-sky-700 font-normal">ปฏิทิน พ.ศ.</span>
                         </label>
                         <BuddhistDatePicker
@@ -638,7 +788,7 @@ export default function RegisterModal({
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                          <span>วันบัตรหมดอายุ</span>
+                          <span>วันบัตรหมดอายุ <span className="text-rose-500">*</span></span>
                           <span className="text-[10px] text-sky-700 font-normal">ปฏิทิน พ.ศ.</span>
                         </label>
                         <BuddhistDatePicker
@@ -655,7 +805,7 @@ export default function RegisterModal({
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                       <div className="sm:col-span-5">
                         <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                          <span>วัน/เดือน/ปีเกิด (พ.ศ.)</span>
+                          <span>วัน/เดือน/ปีเกิด (พ.ศ.) <span className="text-rose-500">*</span></span>
                           <span className="text-[10px] text-sky-700 font-normal">ปฏิทิน พ.ศ.</span>
                         </label>
                         <BuddhistDatePicker
@@ -685,12 +835,13 @@ export default function RegisterModal({
 
                       <div className="sm:col-span-2">
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          เพศ
+                          เพศ <span className="text-rose-500">*</span>
                         </label>
                         <select
                           value={gender}
                           onChange={(e) => setGender(e.target.value)}
                           className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white"
+                          required
                         >
                           <option value="ชาย">ชาย</option>
                           <option value="หญิง">หญิง</option>
@@ -699,12 +850,13 @@ export default function RegisterModal({
 
                       <div className="sm:col-span-3">
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          สถานภาพสมรส
+                          สถานภาพสมรส <span className="text-rose-500">*</span>
                         </label>
                         <select
                           value={maritalStatus}
                           onChange={(e) => setMaritalStatus(e.target.value)}
                           className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white"
+                          required
                         >
                           <option value="โสด">โสด</option>
                           <option value="สมรส">สมรส</option>
@@ -756,7 +908,7 @@ export default function RegisterModal({
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          รหัสไปรษณีย์
+                          รหัสไปรษณีย์ <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -764,6 +916,7 @@ export default function RegisterModal({
                           value={postalCode}
                           onChange={(e) => setPostalCode(e.target.value)}
                           className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono"
+                          required
                         />
                       </div>
 
@@ -783,7 +936,7 @@ export default function RegisterModal({
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          E-MAIL
+                          E-MAIL <span className="text-[10px] text-slate-400 font-normal">(ถ้ามี - ไม่บังคับ)</span>
                         </label>
                         <input
                           type="email"
@@ -796,7 +949,7 @@ export default function RegisterModal({
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          LINE ID
+                          LINE ID <span className="text-[10px] text-slate-400 font-normal">(ถ้ามี - ไม่บังคับ)</span>
                         </label>
                         <input
                           type="text"
@@ -823,7 +976,7 @@ export default function RegisterModal({
                       {!sameAsCurrent && (
                         <div className="pt-1">
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            ระบุที่อยู่ตามทะเบียนบ้าน
+                            ระบุที่อยู่ตามทะเบียนบ้าน <span className="text-rose-500">*</span>
                           </label>
                           <textarea
                             rows={2}
@@ -831,6 +984,7 @@ export default function RegisterModal({
                             value={registeredAddress}
                             onChange={(e) => setRegisteredAddress(e.target.value)}
                             className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none"
+                            required
                           />
                         </div>
                       )}
@@ -1067,7 +1221,8 @@ export default function RegisterModal({
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-slate-600">
                         <div>ชื่อ: <strong className="text-slate-900">{prefix} {fullNameTh || '-'}</strong></div>
-                        <div>Callsign: <strong className="text-sky-800 font-mono">{callsignType === 'has' && callsign ? callsign : 'ขอรับใหม่'}</strong></div>
+                        <div>Name (EN): <strong className="text-slate-900 font-mono">{fullNameEn || '-'}</strong></div>
+                        <div>Callsign: <strong className="text-sky-800 font-mono">{callsignType === 'has' && callsign ? `${callsign} (${callsignSubStatus === 'expired' ? 'ขาดอายุ' : 'ปัจจุบัน'})` : 'ขอรับใหม่'}</strong></div>
                         <div>เลขบัตร: <strong className="font-mono text-slate-800">{citizenId || '-'}</strong></div>
                         <div>เบอร์โทร: <strong className="font-mono text-slate-800">{phone || '-'}</strong></div>
                         <div>ประเภท: <strong className="text-slate-900">{selectedTier.name}</strong></div>
@@ -1097,7 +1252,7 @@ export default function RegisterModal({
                     className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs sm:text-sm transition cursor-pointer flex items-center gap-1.5 border border-slate-300 shadow-2xs"
                   >
                     <ArrowLeft className="w-4 h-4" />
-                    <span>← ย้อนกลับ</span>
+                    <span>ย้อนกลับ</span>
                   </button>
                 ) : (
                   <button

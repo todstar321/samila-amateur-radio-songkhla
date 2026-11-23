@@ -3,36 +3,91 @@
 import { parseAddressAndPostalCode } from './addressUtils.js';
 import { thaiBahtText } from './thaiBahtText.js';
 
+/**
+ * Format date string into Thai and English short displays
+ */
+function formatThaiDateDisplay(dateStr, fallback = '-') {
+  if (!dateStr) return { thai: fallback, eng: fallback, both: fallback };
+  const parts = String(dateStr).split(/[/.-]/);
+  if (parts.length >= 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const engMonthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (month >= 1 && month <= 12) {
+      const yearAd = year > 2400 ? year - 543 : year;
+      const yearBe = year > 2400 ? year : year + 543;
+      return {
+        thai: `${day} ${thaiMonthsShort[month - 1]} ${yearBe}`,
+        eng: `${day} ${engMonthsShort[month - 1]} ${yearAd}`,
+        both: `${day} ${thaiMonthsShort[month - 1]} ${yearBe} / ${day} ${engMonthsShort[month - 1]} ${yearAd}`
+      };
+    }
+  }
+  return { thai: dateStr, eng: dateStr, both: dateStr };
+}
+
 export function generateApplicationFormSvg(member, settings = {}) {
   const m = member || {};
-  const fullName = m.fullName || 'นายกิตติศักดิ์ เกาะหนูเกาะแมว';
-  const nameParts = fullName.split(' ');
-  const title = nameParts[0] || 'นาย';
-  const firstName = nameParts.length > 2 ? nameParts[1] : (nameParts[0] || fullName);
-  const lastName = nameParts.length > 2 ? nameParts.slice(2).join(' ') : (nameParts[1] || '');
+  const fullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์';
   
-  const formerCallsign = m.formerCallsign || '-';
-  const newCallsign = m.callsign && m.callsign !== '-' ? m.callsign : 'รอขอรับจาก กสทช.';
-  const citizenId = (m.citizenId || '1900400998876').padEnd(13, ' ').split('');
-  const birthDate = m.birthDate || '12/04/2538';
-  const age = m.age || '31';
+  // Extract clean prefix, first name, last name
+  let prefix = m.prefix || '';
+  let restOfName = fullName;
+  if (!prefix) {
+    const knownPrefixes = ['ว่าที่ ร.ต.หญิง', 'ว่าที่ ร.ต.', 'นางสาว', 'นาย', 'นาง', 'ร.ต.', 'พ.ต.', 'พ.ต.อ.', 'ด.ต.', 'ด.ช.', 'ด.ญ.'];
+    for (const p of knownPrefixes) {
+      if (fullName.startsWith(p)) {
+        prefix = p;
+        restOfName = fullName.slice(p.length).trim();
+        break;
+      }
+    }
+  } else if (fullName.startsWith(prefix)) {
+    restOfName = fullName.slice(prefix.length).trim();
+  }
+  const parts = restOfName.split(/\s+/);
+  const firstName = parts[0] || restOfName;
+  const lastName = parts.slice(1).join(' ') || '';
+  const displayTitle = prefix || (m.gender === 'หญิง' ? 'นางสาว' : 'นาย');
+
+  const isExpired = m.callsignSubStatus === 'expired';
+  const hasCallsign = m.callsignType === 'has' || (m.callsign && m.callsign !== '-');
+  const formerCallsign = m.formerCallsign || (hasCallsign && isExpired ? m.callsign : '-');
+  const newCallsign = hasCallsign && !isExpired ? m.callsign : (isExpired ? `ขอต่ออายุ (${m.callsign})` : 'รอขอรับจาก กสทช.');
+
+  const cleanCitizen = String(m.citizenId || '').replace(/\D/g, '').padEnd(13, ' ');
+  const citizenId = cleanCitizen.slice(0, 13).split('');
+  const issueDate = m.citizenIssueDate || '10/05/2569';
+  const expiryDate = m.citizenExpiryDate || '09/05/2579';
+
+  const birthDate = m.birthDate || '01/01/2535';
+  const age = m.age || '34';
   const gender = m.gender || 'ชาย';
   const marital = m.maritalStatus || 'โสด';
 
   // Parse address: strip postal code from address line and sync into postal boxes
-  const parsedAddr = parseAddressAndPostalCode(m.currentAddress || m.registeredAddress || 'เลขที่ 88 ถ.ไทรบุรี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา', m.postalCode);
+  const parsedAddr = parseAddressAndPostalCode(m.currentAddress || m.registeredAddress || 'เลขที่ 5 ซอย 5 ถ.รามวิถี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา', m.postalCode);
   const address = parsedAddr.cleanAddress;
-  const postalCode = parsedAddr.postalDigits;
+  const postalCode = String(parsedAddr.postalDigits || m.postalCode || '90000').padEnd(5, ' ').slice(0, 5).split('');
 
-  const phone = m.phone || '087-345-6789';
-  const email = m.email || 'kittisak.samila@gmail.com';
-  const lineId = m.lineId || 'kittisak.sml';
-  const memberId = (m.memberId || '369115').split('');
+  const phone = m.phone || '093-792-5665';
+  const email = m.email || '-';
+  const lineId = m.lineId || '-';
+  const memberId = String(m.memberId || '30001').padEnd(7, ' ').slice(0, 7).split('');
+
   const memberType = m.memberType || 'สมาชิกสามัญ 5 ปี';
-  const startDate = m.startDate || '19-11-2569';
-  const endDate = m.endDate || '18-11-2574';
-  const appliedDate = m.registeredDate || m.appliedDate || '19/11/2569';
-  const avatar = m.avatar || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=300&q=80';
+  const isHonorary = memberType.includes('กิตติมศักดิ์') || m.membershipTierKey === '1';
+  const isLifetime = memberType.includes('ตลอดชีพ') || m.membershipTierKey === '2';
+  const is5Year = memberType.includes('5 ปี') || m.membershipTierKey === '3' || (!isHonorary && !isLifetime && !memberType.includes('องค์กร'));
+  const isOrg = memberType.includes('องค์กร') || m.membershipTierKey === '4';
+  const feeAmount = isLifetime ? '2,500.00' : (is5Year ? '500.00' : '0.00');
+
+  const startDate = m.startDate || '23-11-2569';
+  const endDate = m.endDate || (isLifetime ? 'ตลอดชีพ' : '22-11-2574');
+  const appliedDate = m.registeredDate || m.appliedDate || '23/11/2569';
+  const avatar = m.avatar || '';
 
   const approverName = m.approvedByAdminName || settings.presidentName || 'นายธานี รายศิริ';
   const approverCallsign = m.approvedByCallsign ? ` (${m.approvedByCallsign})` : '';
@@ -62,12 +117,19 @@ export function generateApplicationFormSvg(member, settings = {}) {
   <text x="380" y="103" font-size="11" font-weight="bold" text-anchor="middle" fill="#0369a1">สถานีวิทยุสมัครเล่นควบคุมข่ายประจำจังหวัดสงขลา HS9AS</text>
   <text x="380" y="119" font-size="10" text-anchor="middle" fill="#475569">เลขที่ 5 ซอย 5 ถ.รามวิถี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา 90000</text>
 
-  <!-- Photo Box (1 นิ้ว) -->
+  <!-- Photo Box (1 นิ้ว) - Canvas-Safe -->
   <g transform="translate(635, 45)">
     <rect width="110" height="135" fill="#f8fafc" stroke="#64748b" stroke-width="1.2" stroke-dasharray="3,3" rx="4" />
-    <image href="${avatar}" x="5" y="5" width="100" height="125" preserveAspectRatio="xMidYMid slice" />
-    <rect x="5" y="108" width="100" height="22" fill="#000000" opacity="0.6" rx="2" />
-    <text x="55" y="123" font-size="9" text-anchor="middle" fill="#ffffff">รูปถ่าย 1 นิ้ว</text>
+    ${avatar && avatar.startsWith('data:') ? `
+      <image href="${avatar}" x="5" y="5" width="100" height="125" preserveAspectRatio="xMidYMid slice" rx="3" />
+    ` : `
+      <rect x="5" y="5" width="100" height="125" fill="#f1f5f9" rx="3" />
+      <circle cx="55" cy="50" r="24" fill="#0284c7" opacity="0.8" />
+      <path d="M 22 118 C 22 84, 88 84, 88 118 Z" fill="#0369a1" opacity="0.85" />
+      <circle cx="55" cy="50" r="18" fill="#ffffff" opacity="0.25" />
+    `}
+    <rect x="5" y="108" width="100" height="22" fill="#000000" opacity="0.65" rx="2" />
+    <text x="55" y="123" font-size="9" font-weight="bold" text-anchor="middle" fill="#ffffff">รูปถ่าย 1 นิ้ว</text>
   </g>
 
   <!-- Top Reference Code Boxes -->
@@ -86,7 +148,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
   <g transform="translate(55, 230)" font-size="11.5" fill="#0f172a">
     <!-- Row 1: Name -->
     <text x="0" y="0">ชื่อ ............................................................................</text>
-    <text x="25" y="-1" font-weight="bold" fill="#0369a1">${firstName}</text>
+    <text x="25" y="-1" font-weight="bold" fill="#0369a1">${displayTitle} ${firstName}</text>
 
     <text x="340" y="0">นามสกุล ............................................................................</text>
     <text x="385" y="-1" font-weight="bold" fill="#0369a1">${lastName}</text>
@@ -106,7 +168,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
         <text x="${i * 18 + 8}" y="14" font-size="11" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0f172a">${citizenId[i] || ''}</text>
       `).join('')}
     </g>
-    <text x="375" y="58">วันออกบัตร <tspan font-weight="bold" fill="#0369a1">15/05/2565</tspan> วันหมดอายุ <tspan font-weight="bold" fill="#0369a1">14/05/2573</tspan></text>
+    <text x="375" y="58">วันออกบัตร <tspan font-weight="bold" fill="#0369a1">${issueDate}</tspan> วันหมดอายุ <tspan font-weight="bold" fill="#0369a1">${expiryDate}</tspan></text>
 
     <!-- Row 4: Birth, Age, Gender -->
     <text x="0" y="88">วัน/เดือน/ปีเกิด .............................................</text>
@@ -202,53 +264,65 @@ export function generateApplicationFormSvg(member, settings = {}) {
 
     <!-- Application Type Badges -->
     <g transform="translate(0, 16)" font-size="11" fill="#334155">
-      <text x="0" y="10">( ) สมัครสมาชิกใหม่</text>
-      <text x="140" y="10">( ) ต่อบัตร</text>
-      <text x="230" y="10"><tspan font-weight="bold" fill="#0369a1">(✓) ขอสัญญาณเรียกขาน</tspan></text>
-      <text x="390" y="10">( ) เลื่อนสถานะ</text>
+      <text x="0" y="10">${hasCallsign ? '( ) สมัครสมาชิกใหม่' : '(✓) สมัครสมาชิกใหม่'}</text>
+      <text x="140" y="10">${isExpired ? '<tspan font-weight="bold" fill="#0369a1">(✓) ต่อบัตร/ขอคืนสัญญาณ</tspan>' : '( ) ต่อบัตร'}</text>
+      <text x="290" y="10">${!hasCallsign ? '<tspan font-weight="bold" fill="#0369a1">(✓) ขอสัญญาณเรียกขาน</tspan>' : '( ) ขอสัญญาณเรียกขาน'}</text>
+      <text x="440" y="10">( ) เลื่อนสถานะ</text>
     </g>
 
     <!-- Tier 1 -->
     <g transform="translate(0, 48)" font-size="11">
-      <circle cx="10" cy="0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
-      <text x="25" y="4" fill="#334155">1. กิตติมศักดิ์ ไม่ต้องชำระค่าใดๆ</text>
+      <circle cx="10" cy="0" r="6" fill="${isHonorary ? '#0284c7' : '#ffffff'}" stroke="${isHonorary ? '#0284c7' : '#64748b'}" stroke-width="1.2" />
+      ${isHonorary ? '<path d="M 7 0 L 9 3 L 14 -3" stroke="#ffffff" stroke-width="1.8" fill="none" />' : ''}
+      <text x="25" y="4" font-weight="${isHonorary ? 'bold' : 'normal'}" fill="${isHonorary ? '#0f172a' : '#334155'}">1. กิตติมศักดิ์ ไม่ต้องชำระค่าใดๆ</text>
       <text x="420" y="4" fill="#64748b">รหัสสมาชิก</text>
       <g transform="translate(485, -10)">
-        ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i*15}" y="0" width="13" height="15" fill="#f8fafc" stroke="#94a3b8" />`).join('')}
+        ${[0, 1, 2, 3, 4, 5, 6].map(i => `
+          <rect x="${i*15}" y="0" width="13" height="15" fill="${isHonorary ? '#f0f9ff' : '#f8fafc'}" stroke="${isHonorary ? '#0284c7' : '#94a3b8'}" />
+          <text x="${i * 15 + 6.5}" y="11" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0369a1">${isHonorary ? (memberId[i] || '') : ''}</text>
+        `).join('')}
       </g>
     </g>
 
     <!-- Tier 2 -->
     <g transform="translate(0, 72)" font-size="11">
-      <circle cx="10" cy="0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
-      <text x="25" y="4" fill="#334155">2. สามัญตลอดชีพ ชำระค่าบำรุงครั้งเดียว 2,500 บาท</text>
+      <circle cx="10" cy="0" r="6" fill="${isLifetime ? '#0284c7' : '#ffffff'}" stroke="${isLifetime ? '#0284c7' : '#64748b'}" stroke-width="1.2" />
+      ${isLifetime ? '<path d="M 7 0 L 9 3 L 14 -3" stroke="#ffffff" stroke-width="1.8" fill="none" />' : ''}
+      <text x="25" y="4" font-weight="${isLifetime ? 'bold' : 'normal'}" fill="${isLifetime ? '#0f172a' : '#334155'}">2. สามัญตลอดชีพ ชำระค่าบำรุงครั้งเดียว 2,500 บาท</text>
       <text x="420" y="4" fill="#64748b">รหัสสมาชิก</text>
       <g transform="translate(485, -10)">
-        ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i*15}" y="0" width="13" height="15" fill="#f8fafc" stroke="#94a3b8" />`).join('')}
+        ${[0, 1, 2, 3, 4, 5, 6].map(i => `
+          <rect x="${i*15}" y="0" width="13" height="15" fill="${isLifetime ? '#f0f9ff' : '#f8fafc'}" stroke="${isLifetime ? '#0284c7' : '#94a3b8'}" />
+          <text x="${i * 15 + 6.5}" y="11" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0369a1">${isLifetime ? (memberId[i] || '') : ''}</text>
+        `).join('')}
       </g>
     </g>
 
     <!-- Tier 3 (Selected) -->
     <g transform="translate(0, 96)" font-size="11">
-      <circle cx="10" cy="0" r="6" fill="#0284c7" stroke="#0284c7" stroke-width="1.2" />
-      <path d="M 7 0 L 9 3 L 14 -3" stroke="#ffffff" stroke-width="1.8" fill="none" />
-      <text x="25" y="4" font-weight="bold" fill="#0f172a">3. สามัญ 5 ปี ชำระค่าบำรุงครั้งละ 500 บาท (อายุ 5 ปี)</text>
-      <text x="420" y="4" font-weight="bold" fill="#0f172a">รหัสสมาชิก</text>
+      <circle cx="10" cy="0" r="6" fill="${is5Year ? '#0284c7' : '#ffffff'}" stroke="${is5Year ? '#0284c7' : '#64748b'}" stroke-width="1.2" />
+      ${is5Year ? '<path d="M 7 0 L 9 3 L 14 -3" stroke="#ffffff" stroke-width="1.8" fill="none" />' : ''}
+      <text x="25" y="4" font-weight="${is5Year ? 'bold' : 'normal'}" fill="${is5Year ? '#0f172a' : '#334155'}">3. สามัญ 5 ปี ชำระค่าบำรุงครั้งละ 500 บาท (อายุ 5 ปี)</text>
+      <text x="420" y="4" font-weight="${is5Year ? 'bold' : 'normal'}" fill="#0f172a">รหัสสมาชิก</text>
       <g transform="translate(485, -10)">
         ${[0, 1, 2, 3, 4, 5, 6].map((i) => `
-          <rect x="${i * 15}" y="0" width="13" height="15" fill="#f0f9ff" stroke="#0284c7" stroke-width="1" />
-          <text x="${i * 15 + 6.5}" y="11" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0369a1">${memberId[i] || ''}</text>
+          <rect x="${i * 15}" y="0" width="13" height="15" fill="${is5Year ? '#f0f9ff' : '#f8fafc'}" stroke="${is5Year ? '#0284c7' : '#94a3b8'}" stroke-width="1" />
+          <text x="${i * 15 + 6.5}" y="11" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0369a1">${is5Year ? (memberId[i] || '') : ''}</text>
         `).join('')}
       </g>
     </g>
 
     <!-- Tier 4 -->
     <g transform="translate(0, 120)" font-size="11">
-      <circle cx="10" cy="0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.2" />
-      <text x="25" y="4" fill="#334155">4. รูปแบบขององค์กรวิทยุสมัครเล่น ไม่ต้องชำระค่าบำรุง</text>
+      <circle cx="10" cy="0" r="6" fill="${isOrg ? '#0284c7' : '#ffffff'}" stroke="${isOrg ? '#0284c7' : '#64748b'}" stroke-width="1.2" />
+      ${isOrg ? '<path d="M 7 0 L 9 3 L 14 -3" stroke="#ffffff" stroke-width="1.8" fill="none" />' : ''}
+      <text x="25" y="4" font-weight="${isOrg ? 'bold' : 'normal'}" fill="${isOrg ? '#0f172a' : '#334155'}">4. รูปแบบขององค์กรวิทยุสมัครเล่น ไม่ต้องชำระค่าบำรุง</text>
       <text x="420" y="4" fill="#64748b">รหัสสมาชิก</text>
       <g transform="translate(485, -10)">
-        ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i*15}" y="0" width="13" height="15" fill="#f8fafc" stroke="#94a3b8" />`).join('')}
+        ${[0, 1, 2, 3, 4, 5, 6].map(i => `
+          <rect x="${i*15}" y="0" width="13" height="15" fill="${isOrg ? '#f0f9ff' : '#f8fafc'}" stroke="${isOrg ? '#0284c7' : '#94a3b8'}" />
+          <text x="${i * 15 + 6.5}" y="11" font-size="10" font-family="monospace" font-weight="bold" text-anchor="middle" fill="#0369a1">${isOrg ? (memberId[i] || '') : ''}</text>
+        `).join('')}
       </g>
     </g>
 
@@ -298,13 +372,13 @@ export function generateApplicationFormSvg(member, settings = {}) {
       <rect x="0" y="4" width="12" height="12" fill="#0284c7" stroke="#334155" stroke-width="1" />
       <path d="M 2 10 L 5 14 L 11 6" stroke="#ffffff" stroke-width="1.8" fill="none" />
       <text x="20" y="15">รับเงินค่าสมาชิก ....................................... บาท</text>
-      <text x="125" y="14" font-weight="bold" fill="#0369a1">600.00</text>
+      <text x="125" y="14" font-weight="bold" fill="#0369a1">${feeAmount}</text>
 
       <!-- Checked box 2 -->
       <rect x="0" y="28" width="12" height="12" fill="#0284c7" stroke="#334155" stroke-width="1" />
       <path d="M 2 34 L 5 38 L 11 30" stroke="#ffffff" stroke-width="1.8" fill="none" />
       <text x="20" y="39">ใบเสร็จรับเงินเลขที่ ........................................</text>
-      <text x="135" y="38" font-mono font-weight="bold" fill="#0369a1">SML-69-0115</text>
+      <text x="135" y="38" font-mono font-weight="bold" fill="#0369a1">${m.receiptNo || `SML-69-${String(m.memberId || '0115').slice(-4)}`}</text>
 
       <!-- Staff Signature -->
       <text x="0" y="65">ลงนามเจ้าหน้าที่ ......................................................</text>
@@ -337,11 +411,17 @@ export function generateApplicationFormSvg(member, settings = {}) {
 // 2. Generate Thai Citizen ID Card Mockup
 export function generateCitizenIdCardSvg(member) {
   const m = member || {};
-  const fullName = m.fullName || 'นายกิตติศักดิ์ เกาะหนูเกาะแมว';
-  const nameEn = m.nameEnglish || 'Mr. Kittisak Kohnoo';
-  const citizenId = m.citizenId || '1900400998876';
-  const formattedId = `${citizenId.slice(0,1)} ${citizenId.slice(1,5)} ${citizenId.slice(5,10)} ${citizenId.slice(10,12)} ${citizenId.slice(12,13)}`;
-  const avatar = m.avatar || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=300&q=80';
+  const fullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์';
+  const nameEn = m.nameEnglish || 'Theepchalit Thongjun';
+  const cleanId = String(m.citizenId || '1969900105532').replace(/\D/g, '').padEnd(13, 'X');
+  const formattedId = `${cleanId.slice(0,1)} ${cleanId.slice(1,5)} ${cleanId.slice(5,10)} ${cleanId.slice(10,12)} ${cleanId.slice(12,13)}`;
+  const avatar = m.avatar || '';
+
+  const birthInfo = formatThaiDateDisplay(m.birthDate || '01/01/2535');
+  const issueInfo = formatThaiDateDisplay(m.citizenIssueDate || '10/05/2569');
+  const expiryInfo = formatThaiDateDisplay(m.citizenExpiryDate || '09/05/2579');
+  const addr = m.currentAddress || m.registeredAddress || 'เลขที่ 5 ซอย 5 ถ.รามวิถี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา 90000';
+  const signDate = m.registeredDate || '23 พ.ย. 2569';
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" style="background:#e2e8f0; font-family:'Sarabun', sans-serif;">
@@ -383,27 +463,34 @@ export function generateCitizenIdCardSvg(member) {
 
   <!-- Details: Birth, Religion -->
   <text x="160" y="280" font-size="12" fill="#475569">เกิดวันที่ / Date of Birth</text>
-  <text x="160" y="302" font-size="14" font-weight="bold" fill="#0f172a">12 เม.ย. 2538 / 12 Apr 1995</text>
+  <text x="160" y="302" font-size="14" font-weight="bold" fill="#0f172a">${birthInfo.both}</text>
 
   <text x="380" y="280" font-size="12" fill="#475569">ศาสนา / Religion</text>
   <text x="380" y="302" font-size="14" font-weight="bold" fill="#0f172a">พุทธ</text>
 
   <!-- Address -->
   <text x="60" y="350" font-size="12" fill="#475569">ที่อยู่ / Address</text>
-  <text x="60" y="375" font-size="13.5" font-weight="bold" fill="#0f172a">88 ถ.ไทรบุรี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา 90000</text>
+  <text x="60" y="375" font-size="13.5" font-weight="bold" fill="#0f172a">${addr}</text>
 
   <!-- Dates of Issue & Expiry -->
-  <text x="60" y="420" font-size="11" fill="#475569">วันออกบัตร : 15 พ.ค. 2565</text>
-  <text x="60" y="438" font-size="10" fill="#64748b">Date of Issue : 15 May 2022</text>
+  <text x="60" y="420" font-size="11" fill="#475569">วันออกบัตร : ${issueInfo.thai}</text>
+  <text x="60" y="438" font-size="10" fill="#64748b">Date of Issue : ${issueInfo.eng}</text>
 
-  <text x="240" y="420" font-size="11" fill="#475569">วันบัตรหมดอายุ : 14 พ.ค. 2573</text>
-  <text x="240" y="438" font-size="10" fill="#64748b">Date of Expiry : 14 May 2030</text>
+  <text x="240" y="420" font-size="11" fill="#475569">วันบัตรหมดอายุ : ${expiryInfo.thai}</text>
+  <text x="240" y="438" font-size="10" fill="#64748b">Date of Expiry : ${expiryInfo.eng}</text>
 
-  <!-- Photo Box -->
+  <!-- Photo Box - Canvas Safe -->
   <g transform="translate(565, 120)">
     <rect width="180" height="230" rx="8" fill="#e2e8f0" stroke="#64748b" stroke-width="1.5" />
-    <image href="${avatar}" x="4" y="4" width="172" height="222" preserveAspectRatio="xMidYMid slice" rx="6" />
-    <rect x="4" y="196" width="172" height="26" fill="#000000" opacity="0.6" rx="4" />
+    ${avatar && avatar.startsWith('data:') ? `
+      <image href="${avatar}" x="4" y="4" width="172" height="222" preserveAspectRatio="xMidYMid slice" rx="6" />
+    ` : `
+      <rect x="4" y="4" width="172" height="222" fill="#f8fafc" rx="6" />
+      <circle cx="90" cy="85" r="42" fill="#0284c7" opacity="0.8" />
+      <path d="M 25 195 C 25 135, 155 135, 155 195 Z" fill="#0369a1" opacity="0.85" />
+      <circle cx="90" cy="85" r="32" fill="#ffffff" opacity="0.25" />
+    `}
+    <rect x="4" y="196" width="172" height="26" fill="#000000" opacity="0.65" rx="4" />
     <text x="90" y="213" font-size="11" font-family="monospace" text-anchor="middle" fill="#ffffff">THAI CITIZEN</text>
   </g>
 
@@ -414,7 +501,7 @@ export function generateCitizenIdCardSvg(member) {
       // สำเนาถูกต้อง ใช้เฉพาะสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลาเท่านั้น //
     </text>
     <text x="220" y="15" font-size="14" font-family="'Brush Script MT', cursive" font-weight="bold" text-anchor="middle" fill="#1e40af">
-      ลงชื่อ ${fullName} (19 พ.ย. 2569)
+      ลงชื่อ ${fullName} (${signDate})
     </text>
   </g>
 </svg>
@@ -424,8 +511,15 @@ export function generateCitizenIdCardSvg(member) {
 // 3. Generate House Registration (สำเนาทะเบียนบ้าน ท.ร.14) Mockup
 export function generateHouseRegistrationSvg(member) {
   const m = member || {};
-  const fullName = m.fullName || 'นายกิตติศักดิ์ เกาะหนูเกาะแมว';
-  const citizenId = m.citizenId || '1900400998876';
+  const fullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์';
+  const cleanId = String(m.citizenId || '1969900105532').replace(/\D/g, '').padEnd(13, 'X');
+  const formattedId = `${cleanId.slice(0,1)} ${cleanId.slice(1,5)} ${cleanId.slice(5,10)} ${cleanId.slice(10,12)} ${cleanId.slice(12,13)}`;
+  const signDate = m.registeredDate || '23 พ.ย. 2569';
+
+  const fullAddr = m.registeredAddress || m.currentAddress || 'เลขที่ 5 ซอย 5 ถ.รามวิถี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา 90000';
+  const parsed = parseAddressAndPostalCode(fullAddr, m.postalCode);
+  const cleanAddr = parsed.cleanAddress;
+  const pCode = parsed.postalDigits || '90000';
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650" width="800" height="650" style="background:#ffffff; font-family:'Sarabun', sans-serif;">
@@ -444,16 +538,11 @@ export function generateHouseRegistrationSvg(member) {
   <!-- House Details Box -->
   <rect x="50" y="155" width="700" height="110" fill="#ffffff" stroke="#cbd5e1" rx="4" />
   <g transform="translate(70, 185)" font-size="12" fill="#1e293b">
-    <text x="0" y="0">รหัสประจำบ้าน : <tspan font-family="monospace" font-weight="bold" fill="#0369a1">9001-088765-2</tspan></text>
+    <text x="0" y="0">รหัสประจำบ้าน : <tspan font-family="monospace" font-weight="bold" fill="#0369a1">9001-${cleanId.slice(0, 6)}-2</tspan></text>
     <text x="350" y="0">สำนักทะเบียน : <tspan font-weight="bold">ท้องถิ่นเทศบาลนครสงขลา</tspan></text>
 
-    <text x="0" y="30">บ้านเลขที่ : <tspan font-weight="bold">88</tspan></text>
-    <text x="120" y="30">ถนน : <tspan font-weight="bold">ไทรบุรี</tspan></text>
-    <text x="280" y="30">ตำบล/แขวง : <tspan font-weight="bold">บ่อยาง</tspan></text>
-
-    <text x="0" y="60">อำเภอ/เขต : <tspan font-weight="bold">เมืองสงขลา</tspan></text>
-    <text x="200" y="60">จังหวัด : <tspan font-weight="bold">สงขลา</tspan></text>
-    <text x="380" y="60">รหัสไปรษณีย์ : <tspan font-weight="bold">90000</tspan></text>
+    <text x="0" y="32">ที่อยู่ตามทะเบียน : <tspan font-weight="bold" fill="#0f172a">${cleanAddr}</tspan></text>
+    <text x="0" y="62">รหัสไปรษณีย์ : <tspan font-family="monospace" font-weight="bold" fill="#0369a1">${pCode}</tspan></text>
   </g>
 
   <!-- Resident Person Table -->
@@ -469,8 +558,8 @@ export function generateHouseRegistrationSvg(member) {
   <g transform="translate(70, 340)" font-size="12" fill="#0f172a">
     <text x="0" y="0">1</text>
     <text x="50" y="0" font-weight="bold" fill="#0369a1">${fullName}</text>
-    <text x="270" y="0" font-family="monospace" font-weight="bold">${citizenId}</text>
-    <text x="450" y="0" font-weight="bold" fill="#16a34a">เจ้าบ้าน</text>
+    <text x="270" y="0" font-family="monospace" font-weight="bold">${formattedId}</text>
+    <text x="450" y="0" font-weight="bold" fill="#16a34a">เจ้าบ้าน/ผู้อาศัย</text>
     <text x="570" y="0">ไทย</text>
   </g>
 
@@ -488,7 +577,7 @@ export function generateHouseRegistrationSvg(member) {
       // สำเนาถูกต้อง ใช้เฉพาะสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลาเท่านั้น //
     </text>
     <text x="220" y="15" font-size="14" font-family="'Brush Script MT', cursive" font-weight="bold" text-anchor="middle" fill="#1e40af">
-      ลงชื่อ ${fullName} (19 พ.ย. 2569)
+      ลงชื่อ ${fullName} (${signDate})
     </text>
   </g>
 </svg>
@@ -498,8 +587,20 @@ export function generateHouseRegistrationSvg(member) {
 // 4. Generate Krungthai Bank Transfer Slip Mockup (สลิปโอนเงิน ธ.กรุงไทย)
 export function generateBankSlipSvg(member) {
   const m = member || {};
-  const fullName = m.fullName || 'นายกิตติศักดิ์ เกาะหนูเกาะแมว';
-  const amount = '600.00';
+  const fullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์';
+  const isLifetime = (m.memberType || '').includes('ตลอดชีพ');
+  const isHonorary = (m.memberType || '').includes('กิตติมศักดิ์');
+  const isOrg = (m.memberType || '').includes('องค์กร');
+  const feeNum = isLifetime ? 2500 : (isHonorary || isOrg ? 0 : 500);
+  const amount = feeNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
+  const cleanLast4 = String(m.citizenId || '1234').replace(/\D/g, '').slice(-4) || '8876';
+  const desc = isLifetime ? 'ค่าบำรุงสมาชิกตลอดชีพ (2,500 บาท)' : (isHonorary ? 'สมาชิกกิตติมศักดิ์' : 'ค่าบำรุงสมาชิก 5 ปี (500 บาท)');
+
+  const now = new Date();
+  const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const dateStr = `${now.getDate()} ${thaiMonthsShort[now.getMonth()]} ${now.getFullYear() + 543} - ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} น.`;
+  const refNo = `KTB${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(Date.now()).slice(-6)}`;
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 850" width="600" height="850" style="background:#f1f5f9; font-family:'Sarabun', sans-serif;">
@@ -525,7 +626,7 @@ export function generateBankSlipSvg(member) {
   <g transform="translate(55, 205)">
     <text x="245" y="0" font-size="12" text-anchor="middle" fill="#64748b">จำนวนเงินที่โอน</text>
     <text x="245" y="38" font-size="34" font-weight="bold" font-family="monospace" text-anchor="middle" fill="#0284c7">฿${amount}</text>
-    <text x="245" y="60" font-size="11" text-anchor="middle" fill="#10b981 font-bold">● ค่าธรรมเนียม 0.00 บาท</text>
+    <text x="245" y="60" font-size="11" text-anchor="middle" fill="#10b981">● ค่าธรรมเนียม 0.00 บาท</text>
   </g>
 
   <line x1="55" y1="285" x2="545" y2="285" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6,4" />
@@ -538,7 +639,7 @@ export function generateBankSlipSvg(member) {
     <text x="15" y="19" font-size="10" font-weight="bold" text-anchor="middle" fill="#0284c7">จาก</text>
     <text x="40" y="10" font-size="11" fill="#64748b">ผู้โอนเงิน</text>
     <text x="40" y="28" font-size="13.5" font-weight="bold" fill="#0f172a">${fullName}</text>
-    <text x="40" y="46" font-size="11" font-family="monospace" fill="#475569">ธ.กรุงไทย • xxx-x-xx876-0</text>
+    <text x="40" y="46" font-size="11" font-family="monospace" fill="#475569">ธ.กรุงไทย • xxx-x-xx${cleanLast4}-0</text>
 
     <!-- TO -->
     <g transform="translate(0, 75)">
@@ -552,13 +653,13 @@ export function generateBankSlipSvg(member) {
     <!-- REF & DATE -->
     <g transform="translate(0, 160)" font-size="11.5">
       <text x="0" y="0" fill="#64748b">วันที่ทำรายการ :</text>
-      <text x="130" y="0" font-weight="bold" fill="#0f172a">19 พ.ย. 2569 - 14:22:15 น.</text>
+      <text x="130" y="0" font-weight="bold" fill="#0f172a">${dateStr}</text>
 
       <text x="0" y="25" fill="#64748b">รหัสอ้างอิง :</text>
-      <text x="130" y="25" font-family="monospace" font-weight="bold" fill="#0284c7">KTB20261119784321</text>
+      <text x="130" y="25" font-family="monospace" font-weight="bold" fill="#0284c7">${refNo}</text>
 
       <text x="0" y="50" fill="#64748b">ประเภทรายการ :</text>
-      <text x="130" y="50" font-weight="bold" fill="#0f172a">ค่าบำรุงสมาชิก 5 ปี (500) + แรกเข้า (100)</text>
+      <text x="130" y="50" font-weight="bold" fill="#0f172a">${desc}</text>
     </g>
   </g>
 
@@ -621,6 +722,9 @@ export function generateCertificateSvg(member, settings = {}) {
   const registrarName = settings.registrarName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
   const registrarCallsign = settings.registrarCallsign || 'E26ECG';
 
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`;
+
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1280" width="900" height="1280" style="background:#ffffff; font-family:'Sarabun', 'Thonburi', sans-serif;">
   <rect width="900" height="1280" fill="#ffffff" />
@@ -674,7 +778,7 @@ export function generateCertificateSvg(member, settings = {}) {
   <!-- Writing Location & Date -->
   <g transform="translate(70, 295)" font-size="12" fill="#1e293b">
     <text x="760" y="0" text-anchor="end">เขียนที่ <tspan font-weight="bold">สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา</tspan></text>
-    <text x="760" y="22" text-anchor="end">วันที่ <tspan font-weight="bold">${startDate}</tspan> เวลา <tspan font-weight="bold">15:14 น.</tspan></text>
+    <text x="760" y="22" text-anchor="end">วันที่ <tspan font-weight="bold">${startDate}</tspan> เวลา <tspan font-weight="bold">${timeStr}</tspan></text>
   </g>
 
   <!-- Preamble -->
@@ -773,15 +877,19 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const address = m.currentAddress || m.registeredAddress || 'เลขที่ 5 ซ.5 ถ.รามวิถี ต.บ่อยาง อ.เมืองสงขลา จ.สงขลา 90000';
   const bookNo = receiptInfo.bookNo || '03';
   const receiptNo = receiptInfo.receiptNo || '0111';
-  const date = receiptInfo.date || m.startDate || '12 เม.ย. 2569';
   
-  const isLifetime = (m.memberType || '').includes('ตลอดชีพ');
+  const now = new Date();
+  const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const defaultDateStr = `${now.getDate()} ${thaiMonthsShort[now.getMonth()]} ${now.getFullYear() + 543}`;
+  const date = receiptInfo.date || m.registeredDate || m.startDate || defaultDateStr;
+  
+  const isLifetime = (m.memberType || '').includes('ตลอดชีพ') || m.membershipTierKey === '2';
   const amount = isLifetime ? '2,500.00' : '500.00';
   const amountNum = isLifetime ? 2500 : 500;
   const amountText = thaiBahtText(amountNum) || (isLifetime ? 'สองพันห้าร้อยบาทถ้วน' : 'ห้าร้อยบาทถ้วน');
   const description = isLifetime ? 'ค่าบำรุงสมาชิกสมาคมฯ ประเภทตลอดชีพ (Life Membership Fee)' : 'ค่าบำรุงสมาชิกสมาคมฯ ประเภทสามัญ 5 ปี (5-Year Regular Membership Fee)';
   const officerName = receiptInfo.officerName || settings.registrarName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
-  const officerCallsign = receiptInfo.officerCallsign || 'E26ECG';
+  const officerCallsign = receiptInfo.officerCallsign || settings.registrarCallsign || 'E26ECG';
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" style="background:#ffffff; font-family:'Sarabun', 'Thonburi', sans-serif;">
