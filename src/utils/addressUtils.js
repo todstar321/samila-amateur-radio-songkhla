@@ -4,42 +4,75 @@
  * Requirements:
  * 1. The postal code should NOT be displayed on the address line (omit trailing 5-digit postal code).
  * 2. The postal code is extracted and placed directly into the 5 postal code boxes below.
+ * 3. Telephone numbers mistakenly included in the address field are cleaned out and separated.
+ * 4. Splitting between Line 1 and Line 2 preserves balanced parentheses and word boundaries.
  */
 
 export function parseAddressAndPostalCode(rawAddress = '', explicitPostalCode = '') {
-  const rawStr = (rawAddress || '').trim();
+  let rawStr = (rawAddress || '').trim();
 
-  // Pattern matching Thai postal code at the end of the address line,
-  // optionally preceded by words like 'รหัสไปรษณีย์', 'ปณ.', 'ปณ', 'ไปรษณีย์'
+  // 1. Strip redundant telephone numbers mistakenly entered into address
+  const phonePattern = /(?:เบอร์โทรศัพท์|เบอร์โทร|โทรศัพท์|โทร\.?|tel\.?|phone:?)\s*[:\-\d\s]+/gi;
+  rawStr = rawStr.replace(phonePattern, ' ').trim();
+
+  // 2. Extract 5-digit postal code (with or without prefixes)
+  const postalWithPrefixPattern = /(?:รหัสไปรษณีย์|ปณ\.?|ไปรษณีย์)\s*(\d{5})/i;
   const trailingPostalPattern = /(?:รหัสไปรษณีย์|ปณ\.?|ไปรษณีย์)?\s*(\d{5})\s*$/;
-  const match = rawStr.match(trailingPostalPattern);
-  const any5Digits = rawStr.match(/\b\d{5}\b/);
+  const any5DigitsPattern = /\b\d{5}\b/;
 
-  let postalCode = (explicitPostalCode || (match ? match[1] : (any5Digits ? any5Digits[0] : '90000'))).toString().trim();
-  if (!postalCode) postalCode = '90000';
-  // Ensure postal code is formatted to 5 digits
-  postalCode = postalCode.padEnd(5, '0').slice(0, 5);
+  const postalMatch = rawStr.match(postalWithPrefixPattern) || rawStr.match(trailingPostalPattern) || rawStr.match(any5DigitsPattern);
+  const extractedPostal = explicitPostalCode || (postalMatch ? (postalMatch[1] || postalMatch[0]) : '90000');
+  let cleanPostal = String(extractedPostal).replace(/\D/g, '').padEnd(5, '0').slice(0, 5);
+  if (!cleanPostal || cleanPostal === '00000') cleanPostal = '90110';
 
-  // Clean address: strip the trailing postal code and its prefix keywords
-  let cleanAddress = rawStr.replace(trailingPostalPattern, '').trim();
-  // Strip trailing punctuation if left over (e.g. trailing comma, hyphen, dots)
-  cleanAddress = cleanAddress.replace(/[, -]+$/, '').trim();
+  // 3. Remove the postal code and prefix keywords from the address line
+  let cleanAddress = rawStr
+    .replace(/(?:รหัสไปรษณีย์|ปณ\.?|ไปรษณีย์)\s*\d{5}/gi, '')
+    .replace(/\b\d{5}\b/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[, -]+$/, '')
+    .trim();
+
+  // Remove empty parentheses like ()
+  cleanAddress = cleanAddress.replace(/\(\s*\)/g, '').trim();
 
   if (!cleanAddress) {
     cleanAddress = 'เลขที่ 88 ถ.ไทรบุรี ต.บ่อยาง อ.เมือง จ.สงขลา';
   }
 
-  // Split into lines if comma is present
-  const tokens = cleanAddress.split(',');
-  const line1 = tokens[0].trim();
-  const line2 = tokens.length > 1 ? tokens.slice(1).join(',').trim() : '';
+  // 4. Split into Address Line 1 and Address Line 2
+  let line1 = cleanAddress;
+  let line2 = '';
+
+  if (cleanAddress.includes(',')) {
+    const tokens = cleanAddress.split(',');
+    line1 = tokens[0].trim();
+    line2 = tokens.slice(1).join(',').trim();
+  } else if (cleanAddress.length > 45) {
+    // Look for natural breakpoint between character 32 and 52 (district, subdistrict, road, space)
+    const splitMatch = cleanAddress.slice(32, 52).search(/[,\s]|(?=ต\.|อ\.|จ\.|ถ\.|ซ\.)/);
+    if (splitMatch !== -1) {
+      const splitIdx = 32 + splitMatch;
+      line1 = cleanAddress.slice(0, splitIdx).trim();
+      line2 = cleanAddress.slice(splitIdx).trim();
+    } else {
+      line1 = cleanAddress.slice(0, 45).trim();
+      line2 = cleanAddress.slice(45).trim();
+    }
+  }
+
+  // Balance parentheses across line 1 and line 2 (e.g. "(ทุ่งเขียวหวาน)" instead of "(ทุ่งเขียวหวาน" / ")")
+  if (line1.includes('(') && !line1.includes(')') && line2.startsWith(')')) {
+    line1 = line1 + ')';
+    line2 = line2.slice(1).trim();
+  }
 
   return {
-    rawAddress: rawStr,
+    rawAddress: (rawAddress || '').trim(),
     cleanAddress,
     addressLine1: line1,
     addressLine2: line2,
-    postalCode,
-    postalDigits: postalCode.split('')
+    postalCode: cleanPostal,
+    postalDigits: cleanPostal.split('')
   };
 }

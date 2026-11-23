@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ArrowRight,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import AssociationLogo from './AssociationLogo';
 import DeveloperCredit from './DeveloperCredit';
@@ -91,6 +92,7 @@ export default function RegisterModal({
   // Copy Bank Account
   const [copiedBank, setCopiedBank] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -141,13 +143,18 @@ export default function RegisterModal({
     setTimeout(() => setCopiedBank(false), 2500);
   };
 
-  // Handle Photo Upload with immediate preview and background Cloudinary upload
+  // Handle Photo Upload with immediate base64 data preview and background Cloudinary upload
   const handleFileChange = async (e, setter) => {
     const file = e.target.files?.[0];
     if (file) {
-      const localUrl = URL.createObjectURL(file);
-      setter(localUrl);
+      // 1. Immediate Base64 Data URL for zero-CORS local rendering and instant display
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        setter(uploadEvent.target.result);
+      };
+      reader.readAsDataURL(file);
 
+      // 2. Background Cloudinary upload for central storage
       try {
         const cloudUrl = await uploadToCloudinary(file);
         if (cloudUrl) {
@@ -260,160 +267,169 @@ export default function RegisterModal({
   // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setErrorMessage('');
 
-    if (callsignType === 'has') {
-      if (!callsignSubStatus) {
-        setErrorMessage('กรุณาเลือกสถานะนามเรียกขาน');
-        setCurrentStep(1);
+    try {
+      if (callsignType === 'has') {
+        if (!callsignSubStatus) {
+          setErrorMessage('กรุณาเลือกสถานะนามเรียกขาน');
+          setCurrentStep(1);
+          return;
+        }
+        if (!callsign.trim()) {
+          setErrorMessage('กรุณาระบุสัญญาณเรียกขานของท่าน (Callsign)');
+          setCurrentStep(1);
+          return;
+        }
+      }
+      if (prefix === 'อื่นๆ' && !customPrefix.trim()) {
+        setErrorMessage('กรุณาระบุคำนำหน้าชื่อ');
+        setCurrentStep(2);
         return;
       }
-      if (!callsign.trim()) {
-        setErrorMessage('กรุณาระบุสัญญาณเรียกขานของท่าน (Callsign)');
-        setCurrentStep(1);
+      if (!fullNameTh.trim()) {
+        setErrorMessage('กรุณาระบุชื่อ-นามสกุล (ภาษาไทย)');
+        setCurrentStep(2);
         return;
       }
-    }
-    if (prefix === 'อื่นๆ' && !customPrefix.trim()) {
-      setErrorMessage('กรุณาระบุคำนำหน้าชื่อ');
-      setCurrentStep(2);
-      return;
-    }
-    if (!fullNameTh.trim()) {
-      setErrorMessage('กรุณาระบุชื่อ-นามสกุล (ภาษาไทย)');
-      setCurrentStep(2);
-      return;
-    }
-    if (!fullNameEn.trim()) {
-      setErrorMessage('กรุณาระบุ First Name - Last Name (ภาษาอังกฤษ)');
-      setCurrentStep(2);
-      return;
-    }
-    const cleanCitizen = citizenId.replace(/\D/g, '');
-    if (!cleanCitizen || cleanCitizen.length !== 13) {
-      setErrorMessage('กรุณาระบุเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง');
-      setCurrentStep(2);
-      return;
-    }
-    if (!citizenIssueDate.trim() || !citizenExpiryDate.trim() || !birthDate.trim()) {
-      setErrorMessage('กรุณาระบุข้อมูลวันที่ให้ครบถ้วน');
-      setCurrentStep(2);
-      return;
-    }
-    if (!currentAddress.trim()) {
-      setErrorMessage('กรุณาระบุที่อยู่ปัจจุบันที่สามารถติดต่อได้');
-      setCurrentStep(3);
-      return;
-    }
-    const cleanPostal = postalCode.replace(/\D/g, '');
-    if (!cleanPostal || cleanPostal.length !== 5) {
-      setErrorMessage('กรุณาระบุรหัสไปรษณีย์ 5 หลักให้ถูกต้อง');
-      setCurrentStep(3);
-      return;
-    }
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 9) {
-      setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
-      setCurrentStep(3);
-      return;
-    }
-    if (!sameAsCurrent && !registeredAddress.trim()) {
-      setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');
-      setCurrentStep(3);
-      return;
-    }
+      if (!fullNameEn.trim()) {
+        setErrorMessage('กรุณาระบุ First Name - Last Name (ภาษาอังกฤษ)');
+        setCurrentStep(2);
+        return;
+      }
+      const cleanCitizen = citizenId.replace(/\D/g, '');
+      if (!cleanCitizen || cleanCitizen.length !== 13) {
+        setErrorMessage('กรุณาระบุเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง');
+        setCurrentStep(2);
+        return;
+      }
+      if (!citizenIssueDate.trim() || !citizenExpiryDate.trim() || !birthDate.trim()) {
+        setErrorMessage('กรุณาระบุข้อมูลวันที่ให้ครบถ้วน');
+        setCurrentStep(2);
+        return;
+      }
+      if (!currentAddress.trim()) {
+        setErrorMessage('กรุณาระบุที่อยู่ปัจจุบันที่สามารถติดต่อได้');
+        setCurrentStep(3);
+        return;
+      }
+      const cleanPostal = postalCode.replace(/\D/g, '');
+      if (!cleanPostal || cleanPostal.length !== 5) {
+        setErrorMessage('กรุณาระบุรหัสไปรษณีย์ 5 หลักให้ถูกต้อง');
+        setCurrentStep(3);
+        return;
+      }
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (!cleanPhone || cleanPhone.length < 9) {
+        setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
+        setCurrentStep(3);
+        return;
+      }
+      if (!sameAsCurrent && !registeredAddress.trim()) {
+        setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');
+        setCurrentStep(3);
+        return;
+      }
 
-    if (totalAmount > 0 && !slipPreview) {
-      setErrorMessage('กรุณาแนบภาพสลิปหลักฐานการโอนเงิน (จำเป็นต้องอัปโหลดเพื่อยืนยันการสมัคร)');
-      setCurrentStep(5);
-      return;
+      if (totalAmount > 0 && !slipPreview) {
+        setErrorMessage('กรุณาแนบภาพสลิปหลักฐานการโอนเงิน (จำเป็นต้องอัปโหลดเพื่อยืนยันการสมัคร)');
+        setCurrentStep(5);
+        return;
+      }
+
+      const cleanLast4 = cleanCitizen.slice(-4);
+      const chosenCallsign = callsignType === 'has' && callsign.trim() ? callsign.trim().toUpperCase() : '-';
+      const effectivePrefix = prefix === 'อื่นๆ' ? customPrefix.trim() : prefix;
+      const finalFullName = `${effectivePrefix} ${fullNameTh.trim()}`.trim();
+      const finalRegisteredAddr = sameAsCurrent ? currentAddress.trim() : (registeredAddress.trim() || currentAddress.trim());
+
+      // Calculate dates
+      const startYearBe = currentYearBe;
+      const endYearBe = membershipType === '2' ? 'ตลอดชีพ' : `${startYearBe + 5}`;
+      const startStr = `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${startYearBe}`;
+      const endStr = membershipType === '2' ? 'ตลอดชีพ' : `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${endYearBe}`;
+
+      // Ensure attached files are Cloudinary URLs
+      let finalAvatar = photoPreview;
+      if (photoPreview && photoPreview.startsWith('blob:')) {
+        finalAvatar = (await uploadToCloudinary(photoPreview)) || photoPreview;
+      }
+      let finalIdCard = idCardPreview;
+      if (idCardPreview && idCardPreview.startsWith('blob:')) {
+        finalIdCard = (await uploadToCloudinary(idCardPreview)) || idCardPreview;
+      }
+      let finalHouseReg = houseRegPreview;
+      if (houseRegPreview && houseRegPreview.startsWith('blob:')) {
+        finalHouseReg = (await uploadToCloudinary(houseRegPreview)) || houseRegPreview;
+      }
+      let finalSlip = slipPreview;
+      if (slipPreview && slipPreview.startsWith('blob:')) {
+        finalSlip = (await uploadToCloudinary(slipPreview)) || slipPreview;
+      }
+
+      const newMemberRecord = {
+        id: `mem-${Date.now()}`,
+        callsign: chosenCallsign,
+        callsignType: callsignType,
+        callsignSubStatus: callsignType === 'has' ? callsignSubStatus : null,
+        formerCallsign: callsignType === 'has' ? (callsignSubStatus === 'expired' ? callsign.trim().toUpperCase() : '-') : '-',
+        username: chosenCallsign !== '-' ? chosenCallsign.toLowerCase() : phone.replace(/\D/g, ''),
+        fullName: finalFullName,
+        prefix: effectivePrefix,
+        nameEnglish: fullNameEn.trim(),
+        citizenId: cleanCitizen,
+        last4Id: cleanLast4,
+        citizenIssueDate: citizenIssueDate.trim() || '10/05/2569',
+        citizenExpiryDate: citizenExpiryDate.trim() || '09/05/2579',
+        birthDate: birthDate.trim() || `${birthDay.padStart(2, '0')}/${birthMonth.padStart(2, '0')}/${birthYearBe}`,
+        age: calculatedAge,
+        gender: gender,
+        maritalStatus: maritalStatus,
+        postalCode: cleanPostal,
+        phone: phone.trim(),
+        email: email.trim(),
+        lineId: lineId.trim(),
+        memberId: consumeMemberId(),
+        memberType: selectedTier.name === 'สามัญ 5 ปี' ? 'สมาชิกสามัญ 5 ปี' : selectedTier.name,
+        membershipTierKey: membershipType,
+        startDate: startStr,
+        endDate: endStr,
+        registeredAddress: finalRegisteredAddr,
+        currentAddress: currentAddress.trim(),
+        deNetworkCode: null,
+        radioStandby: '145.6750 MHz',
+        memberStatus: 'ปกติ (Active)',
+        role: 'member',
+        isSuperAdmin: false,
+        status: 'รอตรวจสอบ',
+        avatar: finalAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        idCardSlip: finalIdCard,
+        houseSlip: finalHouseReg,
+        transferSlip: finalSlip,
+        registeredDate: `${new Date().getDate()} พ.ย. ${currentYearBe}`,
+        expiryAlert: 'ปกติ'
+      };
+
+      setNewRegisteredUser(newMemberRecord);
+      setIsSuccess(true);
+
+      // Save to central cloud storage immediately for real-time cross-device sync
+      saveNewMemberToCentral(newMemberRecord).catch((err) => {
+        console.warn('[MemberSync] Cloud save error:', err);
+      });
+
+      // Automatically notify Telegram group with attached photos
+      sendNewApplicationToTelegram(newMemberRecord).catch((err) => {
+        console.warn('[Telegram Application] Notification error:', err);
+      });
+    } catch (err) {
+      console.error('[RegisterModal] Submit error:', err);
+      setErrorMessage('เกิดข้อผิดพลาดในการส่งใบสมัคร โปรดลองใหม่อีกครั้ง');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const cleanLast4 = cleanCitizen.slice(-4);
-    const chosenCallsign = callsignType === 'has' && callsign.trim() ? callsign.trim().toUpperCase() : '-';
-    const effectivePrefix = prefix === 'อื่นๆ' ? customPrefix.trim() : prefix;
-    const finalFullName = `${effectivePrefix} ${fullNameTh.trim()}`.trim();
-    const finalRegisteredAddr = sameAsCurrent ? currentAddress.trim() : (registeredAddress.trim() || currentAddress.trim());
-
-    // Calculate dates
-    const startYearBe = currentYearBe;
-    const endYearBe = membershipType === '2' ? 'ตลอดชีพ' : `${startYearBe + 5}`;
-    const startStr = `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${startYearBe}`;
-    const endStr = membershipType === '2' ? 'ตลอดชีพ' : `${birthDay.padStart(2, '0')}-${birthMonth.padStart(2, '0')}-${endYearBe}`;
-
-    // Ensure attached files are Cloudinary URLs
-    let finalAvatar = photoPreview;
-    if (photoPreview && photoPreview.startsWith('blob:')) {
-      finalAvatar = (await uploadToCloudinary(photoPreview)) || photoPreview;
-    }
-    let finalIdCard = idCardPreview;
-    if (idCardPreview && idCardPreview.startsWith('blob:')) {
-      finalIdCard = (await uploadToCloudinary(idCardPreview)) || idCardPreview;
-    }
-    let finalHouseReg = houseRegPreview;
-    if (houseRegPreview && houseRegPreview.startsWith('blob:')) {
-      finalHouseReg = (await uploadToCloudinary(houseRegPreview)) || houseRegPreview;
-    }
-    let finalSlip = slipPreview;
-    if (slipPreview && slipPreview.startsWith('blob:')) {
-      finalSlip = (await uploadToCloudinary(slipPreview)) || slipPreview;
-    }
-
-    const newMemberRecord = {
-      id: `mem-${Date.now()}`,
-      callsign: chosenCallsign,
-      callsignType: callsignType,
-      callsignSubStatus: callsignType === 'has' ? callsignSubStatus : null,
-      formerCallsign: callsignType === 'has' ? (callsignSubStatus === 'expired' ? callsign.trim().toUpperCase() : '-') : '-',
-      username: chosenCallsign !== '-' ? chosenCallsign.toLowerCase() : phone.replace(/\D/g, ''),
-      fullName: finalFullName,
-      prefix: effectivePrefix,
-      nameEnglish: fullNameEn.trim(),
-      citizenId: cleanCitizen,
-      last4Id: cleanLast4,
-      citizenIssueDate: citizenIssueDate.trim() || '10/05/2569',
-      citizenExpiryDate: citizenExpiryDate.trim() || '09/05/2579',
-      birthDate: birthDate.trim() || `${birthDay.padStart(2, '0')}/${birthMonth.padStart(2, '0')}/${birthYearBe}`,
-      age: calculatedAge,
-      gender: gender,
-      maritalStatus: maritalStatus,
-      postalCode: cleanPostal,
-      phone: phone.trim(),
-      email: email.trim(),
-      lineId: lineId.trim(),
-      memberId: consumeMemberId(),
-      memberType: selectedTier.name === 'สามัญ 5 ปี' ? 'สมาชิกสามัญ 5 ปี' : selectedTier.name,
-      membershipTierKey: membershipType,
-      startDate: startStr,
-      endDate: endStr,
-      registeredAddress: finalRegisteredAddr,
-      currentAddress: currentAddress.trim(),
-      deNetworkCode: null,
-      radioStandby: '145.6750 MHz',
-      memberStatus: 'ปกติ (Active)',
-      role: 'member',
-      isSuperAdmin: false,
-      status: 'รอตรวจสอบ',
-      avatar: finalAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      idCardSlip: finalIdCard,
-      houseSlip: finalHouseReg,
-      transferSlip: finalSlip,
-      registeredDate: `${new Date().getDate()} พ.ย. ${currentYearBe}`,
-      expiryAlert: 'ปกติ'
-    };
-
-    setNewRegisteredUser(newMemberRecord);
-    setIsSuccess(true);
-
-    // Save to central cloud storage immediately for real-time cross-device sync
-    saveNewMemberToCentral(newMemberRecord).catch((err) => {
-      console.warn('[MemberSync] Cloud save error:', err);
-    });
-
-    // Automatically notify Telegram group with attached photos
-    sendNewApplicationToTelegram(newMemberRecord).catch((err) => {
-      console.warn('[Telegram Application] Notification error:', err);
-    });
   };
 
   const handleFinish = () => {
@@ -1354,10 +1370,22 @@ export default function RegisterModal({
                 ) : (
                   <button
                     type="submit"
-                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md hover:shadow-lg transition cursor-pointer flex items-center gap-2"
+                    disabled={isSubmitting}
+                    className={`px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md hover:shadow-lg transition cursor-pointer flex items-center gap-2 ${
+                      isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                    }`}
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>ส่งเอกสารและยืนยันการสมัคร ✓</span>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>กำลังส่งเอกสารและบันทึกข้อมูล...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>ส่งเอกสารและยืนยันการสมัคร ✓</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>

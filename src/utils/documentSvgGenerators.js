@@ -242,11 +242,11 @@ export function generateApplicationFormSvg(member, settings = {}) {
   const tierKey = getMemberTierKey(m);
   const appTiers = settings.tierPositions || getAppTierPositions();
   const activeAppTier = appTiers[tierKey] || {
-    honorary: { check: { x: 9.5, y: 58.9 }, boxes: { x: 65.43, y: 58.9 } },
-    lifetime: { check: { x: 9.5, y: 61.9 }, boxes: { x: 65.43, y: 61.9 } },
-    fiveYear: { check: { x: 9.5, y: 64.9 }, boxes: { x: 65.43, y: 64.9 } },
-    radioOrg: { check: { x: 9.5, y: 67.9 }, boxes: { x: 65.43, y: 67.9 } }
-  }[tierKey] || { check: { x: 9.5, y: 64.9 }, boxes: { x: 65.43, y: 64.9 } };
+    honorary: { check: { x: 9.3, y: 59.42 }, boxes: { x: 65.55, y: 59.42 } },
+    lifetime: { check: { x: 9.3, y: 62.44 }, boxes: { x: 65.55, y: 62.44 } },
+    fiveYear: { check: { x: 9.3, y: 65.51 }, boxes: { x: 65.55, y: 65.51 } },
+    radioOrg: { check: { x: 9.3, y: 68.49 }, boxes: { x: 65.55, y: 68.49 } }
+  }[tierKey] || { check: { x: 9.3, y: 65.51 }, boxes: { x: 65.55, y: 65.51 } };
 
   // Determine callsignOld and callsignNew
   let callsignOldVal = '';
@@ -357,23 +357,16 @@ export function generateApplicationFormSvg(member, settings = {}) {
       else if (key === 'genderFemaleCheck') val = (m.gender === 'หญิง') ? '✓' : '';
       else if (key === 'maritalCheck') val = '✓';
       else if (key === 'addressLine1') {
-        let addr1 = cleanAddr;
-        let addr2 = parsedAddr.addressLine2 || '';
-        if (!addr2 && cleanAddr.length > 55) {
-          const splitMatch = cleanAddr.slice(35, 65).search(/[,\s]|(?=ต\.|อ\.|จ\.|ถ\.|ซ\.)/);
-          if (splitMatch !== -1) {
-            const splitIdx = 35 + splitMatch;
-            addr1 = cleanAddr.slice(0, splitIdx).trim();
-            addr2 = cleanAddr.slice(splitIdx).trim();
-          }
-        }
+        const addr1 = parsedAddr.addressLine1 || cleanAddr;
+        const addr2 = parsedAddr.addressLine2 || '';
         const effFs = addr1.length > 50 ? Math.max(10.5, Math.floor(fs * 0.88)) : fs;
         elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(addr1)}</text>`);
         if (addr2) {
-          const posL2 = pos.addressLine2 || { x: 10.0, y: 39.2 };
+          const posL2 = pos.addressLine2 || { x: 10.0, y: 38.48 };
           const l2X = (posL2.x / 100) * CANVAS_W;
           const l2Y = (posL2.y / 100) * H;
-          elements.push(`<text x="${l2X}" y="${l2Y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(addr2)}</text>`);
+          const l2Fs = addr2.length > 25 ? Math.max(10.5, Math.floor((posL2.fontSize || fs) * 0.9)) : (posL2.fontSize || fs);
+          elements.push(`<text x="${l2X}" y="${l2Y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${l2Fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central" ${addr2.length > 20 ? 'textLength="225" lengthAdjust="spacingAndGlyphs"' : ''}>${escapeXml(addr2)}</text>`);
         }
       } else if (key === 'addressLine2') {
         if (!pos.addressLine1) {
@@ -834,8 +827,13 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
       else if (key === 'receiptNo') val = receiptNo;
       else if (key === 'payerName') val = rawFullName;
       else if (key === 'memberId') val = String(m.memberId || '369113');
-      else if (key === 'address') val = m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
-      else if (key === 'phone') val = m.phone || '093-792-5665';
+      else if (key === 'address') {
+        const rawAddr = m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
+        val = parseAddressAndPostalCode(rawAddr, m.postalCode).cleanAddress;
+      }
+      else if (key === 'phone') {
+        val = String(m.phone || '093-792-5665').replace(/^(?:เบอร์โทรศัพท์|เบอร์โทร|โทรศัพท์|โทร\.?|tel\.?|phone:?)\s*[:\-\s]*/i, '').trim();
+      }
       else if (key === 'memberFeeCheck') val = '✓';
       else if (key === 'memberFeeTypeCheck') val = '✓';
       else if (key === 'memberFeeAmount') val = isOrg ? '' : amountStr;
@@ -844,7 +842,12 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
       else if (key === 'signerPosition') val = 'เลขาธิการ / ผู้อำนวยการฝ่ายเทคโนโลยี';
 
       if (val) {
-        elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(val)}</text>`);
+        if (key === 'address') {
+          const effFs = val.length > 40 ? Math.max(9.5, Math.floor(fs * 0.88)) : fs;
+          elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs}" fill="${color}" font-weight="${bold}" dominant-baseline="central" ${val.length > 30 ? 'textLength="435" lengthAdjust="spacingAndGlyphs"' : ''}>${escapeXml(val)}</text>`);
+        } else {
+          elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(val)}</text>`);
+        }
       }
     }
   });
@@ -852,5 +855,63 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
   <image href="${templateBg}" xlink:href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
+</svg>`;
+}
+
+// 6. Generate 1-2 Inch Applicant Photo Badge (สำหรับส่ง Telegram กรณีรูปโปรไฟล์ผู้สมัคร)
+export function generateAvatarBadgeSvg(member) {
+  const m = member || {};
+  const fullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์';
+  const callsign = (m.callsign && m.callsign !== '-') ? m.callsign : (m.callsignType === 'has' ? 'มีนามเรียกขาน' : 'ขอรับใหม่');
+  const memberId = m.memberId || '30007';
+  const avatar = m.avatar && m.avatar.startsWith('data:') ? m.avatar : '';
+  const dateStr = m.registeredDate || '23 พ.ย. 2569';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000" style="background:#0f172a; font-family:'Sarabun', sans-serif;">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+  </defs>
+  <!-- Card Background -->
+  <rect x="20" y="20" width="760" height="960" rx="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="3" />
+  
+  <!-- Header Bar -->
+  <rect x="20" y="20" width="760" height="130" rx="24" fill="url(#headerGrad)" />
+  <rect x="20" y="100" width="760" height="50" fill="url(#headerGrad)" />
+  
+  <!-- Header Text -->
+  <text x="400" y="70" font-size="24" font-weight="bold" fill="#ffffff" text-anchor="middle">สมาคมวิทยุสมัครเล่นสมิหลา จังหวัดสงขลา</text>
+  <text x="400" y="105" font-size="16" fill="#e0f2fe" text-anchor="middle" font-family="monospace">SAMILA AMATEUR RADIO SOCIETY OF SONGKHLA (HS9AS)</text>
+
+  <!-- Photo Box Frame -->
+  <rect x="180" y="180" width="440" height="550" rx="16" fill="#f8fafc" stroke="#0284c7" stroke-width="4" />
+  ${avatar ? `
+    <image href="${avatar}" x="184" y="184" width="432" height="542" preserveAspectRatio="xMidYMid slice" rx="12" />
+  ` : `
+    <rect x="184" y="184" width="432" height="542" rx="12" fill="#e2e8f0" />
+    <circle cx="400" cy="380" r="100" fill="#0284c7" opacity="0.85" />
+    <path d="M 230 650 C 230 500, 570 500, 570 650 Z" fill="#0369a1" opacity="0.9" />
+    <circle cx="400" cy="380" r="80" fill="#ffffff" opacity="0.2" />
+  `}
+
+  <!-- Badge Title Overlay -->
+  <rect x="230" y="690" width="340" height="48" rx="24" fill="#0f172a" opacity="0.9" />
+  <text x="400" y="722" font-size="17" font-weight="bold" fill="#38bdf8" text-anchor="middle">ภาพถ่ายหน้าตรง 1-2 นิ้ว (ผู้สมัครสมาชิก)</text>
+
+  <!-- Applicant Details Box -->
+  <rect x="80" y="760" width="640" height="180" rx="16" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="2" />
+  
+  <text x="120" y="805" font-size="17" fill="#64748b">ชื่อ-สกุล ผู้สมัคร:</text>
+  <text x="270" y="805" font-size="20" font-weight="bold" fill="#0f172a">${escapeXml(fullName)}</text>
+  
+  <text x="120" y="850" font-size="17" fill="#64748b">สัญญาณเรียกขาน:</text>
+  <text x="270" y="850" font-size="22" font-family="monospace" font-weight="bold" fill="#0284c7">${escapeXml(callsign)}</text>
+  
+  <text x="120" y="895" font-size="17" fill="#64748b">รหัสสมาชิก:</text>
+  <text x="270" y="895" font-size="20" font-family="monospace" font-weight="bold" fill="#059669">${escapeXml(memberId)}</text>
+  
+  <text x="520" y="895" font-size="15" fill="#94a3b8">วันที่ยื่น: ${escapeXml(dateStr)}</text>
 </svg>`;
 }

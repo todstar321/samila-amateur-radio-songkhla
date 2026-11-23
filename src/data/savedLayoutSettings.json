@@ -1,11 +1,13 @@
 {
-  "version": 24,
+  "version": 25,
   "meta": {
     "savedBy": "ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)",
     "callsign": "E26ECG",
     "last4Id": "5532",
     "savedAt": "2026-11-23T16:15:00.000Z",
-    "savedAtThai": "23 พ.ย. 2569 23:15"
+    "savedAtThai": "23 พ.ย. 2569 23:15",
+    "version": 25,
+    "updatedAt": "2026-11-23T23:55:00.000Z"
   },
   "receipt": {
     "bookNo": {
@@ -552,8 +554,8 @@
     "addressLine2": {
       "id": "addressLine2",
       "label": "ที่อยู่ปัจจุบัน บรรทัดที่ 2 (ถ้ามี)",
-      "x": 10,
-      "y": 39.2,
+      "x": 10.0,
+      "y": 38.48,
       "fontSize": 12.5,
       "color": "#0f172a",
       "bold": false
@@ -572,8 +574,8 @@
       "id": "postalCodeBoxes",
       "type": "simpleDigitBoxes",
       "label": "รหัสไปรษณีย์ (5 หลัก แยกช่องตาราง)",
-      "x": 51.45,
-      "y": 37.3,
+      "x": 51.57,
+      "y": 37.87,
       "pitch": 19.0,
       "digitOffsets": {},
       "fontSize": 13,
@@ -594,8 +596,8 @@
     "phone": {
       "id": "phone",
       "label": "เบอร์โทรศัพท์",
-      "x": 77.56,
-      "y": 37.69,
+      "x": 75.0,
+      "y": 38.48,
       "fontSize": 13,
       "color": "#0433ff",
       "bold": false
@@ -639,8 +641,8 @@
     "tierStandard5YCheck": {
       "id": "tierStandard5YCheck",
       "label": "ติ๊ก ประเภทสมาชิก (1-4) (✓)",
-      "x": 8.57,
-      "y": 59.29,
+      "x": 9.3,
+      "y": 65.51,
       "fontSize": 14,
       "color": "#0433ff",
       "bold": false
@@ -649,8 +651,8 @@
       "id": "tierMemberIdBoxes",
       "type": "simpleDigitBoxes",
       "label": "รหัสสมาชิกในช่อง (แยกช่องตาราง)",
-      "x": 65.43,
-      "y": 64.9,
+      "x": 65.55,
+      "y": 65.51,
       "pitch": 19.0,
       "digitOffsets": {},
       "fontSize": 13,
@@ -849,42 +851,42 @@
   "appTierPositions": {
     "honorary": {
       "check": {
-        "x": 9.5,
-        "y": 58.9
+        "x": 9.3,
+        "y": 59.42
       },
       "boxes": {
-        "x": 65.43,
-        "y": 58.9
+        "x": 65.55,
+        "y": 59.42
       }
     },
     "lifetime": {
       "check": {
-        "x": 9.5,
-        "y": 61.9
+        "x": 9.3,
+        "y": 62.44
       },
       "boxes": {
-        "x": 65.43,
-        "y": 61.9
+        "x": 65.55,
+        "y": 62.44
       }
     },
     "fiveYear": {
       "check": {
-        "x": 9.5,
-        "y": 64.9
+        "x": 9.3,
+        "y": 65.51
       },
       "boxes": {
-        "x": 65.43,
-        "y": 64.9
+        "x": 65.55,
+        "y": 65.51
       }
     },
     "radioOrg": {
       "check": {
-        "x": 9.5,
-        "y": 67.9
+        "x": 9.3,
+        "y": 68.49
       },
       "boxes": {
-        "x": 65.43,
-        "y": 67.9
+        "x": 65.55,
+        "y": 68.49
       }
     }
   },

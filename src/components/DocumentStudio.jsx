@@ -180,20 +180,20 @@ export const DEFAULT_RECEIPT_TIER_POSITIONS = defaultSavedLayout.receiptTierPosi
 
 export const DEFAULT_APP_TIER_POSITIONS = defaultSavedLayout.appTierPositions || {
   honorary: {
-    check: { x: 9.5, y: 58.9 },
-    boxes: { x: 65.43, y: 58.9 }
+    check: { x: 9.3, y: 59.42 },
+    boxes: { x: 65.55, y: 59.42 }
   },
   lifetime: {
-    check: { x: 9.5, y: 61.9 },
-    boxes: { x: 65.43, y: 61.9 }
+    check: { x: 9.3, y: 62.44 },
+    boxes: { x: 65.55, y: 62.44 }
   },
   fiveYear: {
-    check: { x: 9.5, y: 64.9 },
-    boxes: { x: 65.43, y: 64.9 }
+    check: { x: 9.3, y: 65.51 },
+    boxes: { x: 65.55, y: 65.51 }
   },
   radioOrg: {
-    check: { x: 9.5, y: 67.9 },
-    boxes: { x: 65.43, y: 67.9 }
+    check: { x: 9.3, y: 68.49 },
+    boxes: { x: 65.55, y: 68.49 }
   }
 };
 
@@ -345,7 +345,7 @@ const DEFAULT_APP_POSITIONS = defaultSavedLayout.application || {
   
   // Address 2 Lines
   addressLine1: { id: 'addressLine1', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 1 (ไม่มีรหัสไปรษณีย์)', x: 31.48, y: 34.8, fontSize: 12.5, color: '#0433ff', bold: false },
-  addressLine2: { id: 'addressLine2', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 2 (ถ้ามี)', x: 10.0, y: 39.2, fontSize: 12.5, color: '#0433ff', bold: false },
+  addressLine2: { id: 'addressLine2', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 2 (ถ้ามี)', x: 10.0, y: 38.48, fontSize: 12.5, color: '#0433ff', bold: false },
   currentAddress: { id: 'currentAddress', label: 'ที่อยู่ปัจจุบันที่ติดต่อได้ (แบบรวม)', x: 31.48, y: 34.8, fontSize: 12.5, color: '#0433ff', bold: false, hidden: true },
   
   // 6. Postal Code Boxes
@@ -353,16 +353,16 @@ const DEFAULT_APP_POSITIONS = defaultSavedLayout.application || {
     id: 'postalCodeBoxes', 
     type: 'simpleDigitBoxes', 
     label: 'รหัสไปรษณีย์ (5 หลัก แยกช่องตาราง)', 
-    x: 51.45, 
-    y: 37.3, 
+    x: 51.57, 
+    y: 37.87, 
     pitch: 19.0, 
     digitOffsets: {}, 
     fontSize: 13, 
     color: '#0433ff', 
     bold: false 
   },
-  postalCode: { id: 'postalCode', label: 'รหัสไปรษณีย์ (5 หลัก รวม)', x: 51.45, y: 37.3, fontSize: 13, color: '#0433ff', bold: false, letterSpacing: 8, hidden: true },
-  phone: { id: 'phone', label: 'เบอร์โทรศัพท์', x: 74.0, y: 39.2, fontSize: 13, color: '#0f172a', bold: true },
+  postalCode: { id: 'postalCode', label: 'รหัสไปรษณีย์ (5 หลัก รวม)', x: 51.57, y: 37.87, fontSize: 13, color: '#0433ff', bold: false, letterSpacing: 8, hidden: true },
+  phone: { id: 'phone', label: 'เบอร์โทรศัพท์', x: 75.0, y: 38.48, fontSize: 13, color: '#0f172a', bold: true },
   email: { id: 'email', label: 'E-MAIL', x: 16.0, y: 42.2, fontSize: 12, color: '#0f172a', bold: false },
   lineId: { id: 'lineId', label: 'LINE ID', x: 58.0, y: 42.2, fontSize: 12, color: '#0f172a', bold: false },
   
