@@ -1,4 +1,4 @@
-import defaultSavedLayout from '../data/savedLayoutSettings.json';
+import defaultSavedLayout from '../data/savedLayoutSettings.json' with { type: 'json' };
 
 // Local storage key constants
 export const STORAGE_KEYS = {

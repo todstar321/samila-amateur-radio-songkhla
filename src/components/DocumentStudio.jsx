@@ -64,7 +64,7 @@ import {
   STORAGE_KEYS 
 } from '../utils/layoutSyncUtils';
 import { uploadToCloudinary } from '../utils/cloudinaryUtils';
-import defaultSavedLayout from '../data/savedLayoutSettings.json';
+import defaultSavedLayout from '../data/savedLayoutSettings.json' with { type: 'json' };
 
 // Canonical A4 Paper Dimensions at 96 DPI (210mm x 297mm -> 794px x 1123px)
 const CANVAS_BASE_WIDTH = 794;
