@@ -465,61 +465,46 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     return { ok: true, message: 'Application text sent' };
   }
 
-  // 2. ALBUM 1: OFFICIAL DOCUMENTS (ใบสมัคร, ใบเสร็จรับเงิน, หนังสือรับรองสมาชิกภาพ/ขอใบอนุญาต)
+  // 2. ALBUM 1: OFFICIAL APPLICATION DOCUMENTS (ใบเสร็จรับเงิน และ ใบสมัครสมาชิก)
   const officialDocsList = [];
 
-  // 2.1 Complete Application Form Document (ดึงข้อมูลจริง)
-  try {
-    const appSvg = generateApplicationFormSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
-    const appBlob = await svgToPngBlob(appSvg, 1200, 1695);
-    if (appBlob) {
-      officialDocsList.push({
-        blob: appBlob,
-        filename: `01_ใบสมัครสมาชิก_${m.fullName}.png`,
-        caption: `📄 <b>1. ใบสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)</b>\nผู้สมัคร: ${escapeHtml(m.fullName)} • นามเรียกขาน: ${escapeHtml(m.callsign || 'ขอรับใหม่')}`
-      });
-    }
-  } catch (e) {
-    console.warn('App form render error:', e);
-  }
-
-  // 2.2 Official Receipt (e-Receipt - ดึงข้อมูลจริงและเล่มที่/เลขที่จริง)
+  // 2.1 Official Receipt (e-Receipt - ลำดับที่ 1 ตามที่สมาคมฯ กำหนด)
   try {
     const receiptSvg = generateReceiptSvg(m, receiptInfo, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
-    const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 816);
+    const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 1629);
     if (receiptBlob) {
       officialDocsList.push({
         blob: receiptBlob,
-        filename: `02_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
-        caption: `🧾 <b>2. ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • ค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
+        filename: `01_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
+        caption: `🧾 <b>1. ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • ค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
       });
     }
   } catch (e) {
     console.warn('Receipt render error:', e);
   }
 
-  // 2.3 Official Certificate of Membership / Permit Recommendation (ดึงข้อมูลจริง)
+  // 2.2 Complete Application Form Document (แบบคำขอสมัครสมาชิก - ลำดับที่ 2)
   try {
-    const certSvg = generateCertificateSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
-    const certBlob = await svgToPngBlob(certSvg, 1200, 1707);
-    if (certBlob) {
+    const appSvg = generateApplicationFormSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    const appBlob = await svgToPngBlob(appSvg, 1200, 1693);
+    if (appBlob) {
       officialDocsList.push({
-        blob: certBlob,
-        filename: `03_หนังสือรับรองสมาชิก_${m.fullName}.png`,
-        caption: `📜 <b>3. หนังสือรับรองสถานะสมาชิกภาพสมาคม (Certificate)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS) • สมาชิกเลขที่ ${escapeHtml(m.memberId || '30001')}`
+        blob: appBlob,
+        filename: `02_ใบสมัครสมาชิก_${m.fullName}.png`,
+        caption: `📄 <b>2. ใบสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)</b>\nผู้สมัคร: ${escapeHtml(m.fullName)} • นามเรียกขาน: ${escapeHtml(m.callsign || 'ขอรับใหม่')}`
       });
     }
   } catch (e) {
-    console.warn('Certificate render error:', e);
+    console.warn('App form render error:', e);
   }
 
-  // Send Album 1 (Official Documents)
+  // Send Album 1 (Official Documents: ใบเสร็จ + ใบสมัคร)
   if (officialDocsList.length > 0) {
     await sendTelegramMediaGroup(officialDocsList, { botToken: settings.botToken, chatId: settings.chatId });
     await new Promise(r => setTimeout(r, 600));
   }
 
-  // 3. ALBUM 2: ATTACHED APPLICANT EVIDENCE (รูปถ่าย, สำเนาบัตร, ทะเบียนบ้าน, สลิปโอนเงิน)
+  // 3. ALBUM 2: ATTACHED APPLICANT EVIDENCE (รูปถ่าย, สำเนาบัตรประชาชน, ทะเบียนบ้าน, สลิปโอนเงิน)
   const evidenceList = [];
 
   // 3.1 Photo Avatar (1 inch)
@@ -527,8 +512,8 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   if (avatarBlob) {
     evidenceList.push({
       blob: avatarBlob,
-      filename: `04_รูปถ่าย1นิ้ว_${m.fullName}.jpg`,
-      caption: `👤 <b>4. รูปถ่ายหน้าตรง 1 นิ้ว</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+      filename: `03_รูปถ่าย1นิ้ว_${m.fullName}.jpg`,
+      caption: `👤 <b>3. รูปถ่ายหน้าตรง 1 นิ้ว</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
     });
   }
 
@@ -541,8 +526,8 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   if (idCardBlob) {
     evidenceList.push({
       blob: idCardBlob,
-      filename: `05_สำเนาบัตรประชาชน_${m.fullName}.png`,
-      caption: `🪪 <b>5. สำเนาบัตรประจำตัวประชาชน</b>\nเลขที่: <code>${escapeHtml(m.citizenId)}</code>`
+      filename: `04_สำเนาบัตรประชาชน_${m.fullName}.png`,
+      caption: `🪪 <b>4. สำเนาบัตรประจำตัวประชาชน</b>\nเลขที่: <code>${escapeHtml(m.citizenId)}</code>`
     });
   }
 
@@ -555,8 +540,8 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   if (houseBlob) {
     evidenceList.push({
       blob: houseBlob,
-      filename: `06_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
-      caption: `🏠 <b>6. สำเนาทะเบียนบ้าน</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+      filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
+      caption: `🏠 <b>5. สำเนาทะเบียนบ้าน</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
     });
   }
 
@@ -569,8 +554,8 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   if (transferBlob) {
     evidenceList.push({
       blob: transferBlob,
-      filename: `07_สลิปโอนเงิน_${m.fullName}.png`,
-      caption: `💸 <b>7. หลักฐานการโอนเงินค่าบำรุงสมาชิก</b>\nจำนวน: ${escapeHtml(feeText)}`
+      filename: `06_สลิปโอนเงิน_${m.fullName}.png`,
+      caption: `💸 <b>6. หลักฐานการโอนเงินค่าบำรุงสมาชิก</b>\nจำนวน: ${escapeHtml(feeText)}`
     });
   }
 
@@ -615,9 +600,7 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
 ✍️ <b>อนุมัติโดย:</b> ${escapeHtml(approver)} (${escapeHtml(approverCallsign)})
 ⏰ <b>วันเวลาที่อนุมัติ:</b> ${escapeHtml(nowThai)}
 ━━━━━━━━━━━━━━━━━━━━
-📄 <i>ระบบได้ออกเอกสารทางการ 2 ฉบับ และจัดส่งภาพเข้าระบบ Telegram ด้านล่าง:</i>
-1️⃣ <b>ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>
-2️⃣ <b>หนังสือรับรองสถานะการเป็นสมาชิกสมาคม (Official Certificate)</b>
+📜 <i>ระบบได้ออกหนังสือรับรองสถานะการเป็นสมาชิกภาพอย่างเป็นทางการ และจัดส่งภาพเข้าระบบ Telegram ด้านล่าง:</i>
 `.trim();
 
   await sendTelegramMessage(announcement, { botToken: settings.botToken, chatId: settings.chatId });
@@ -628,35 +611,21 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
 
   const docMediaList = [];
 
-  // 2. Render Official Receipt (e-Receipt)
-  let finalReceiptBlob = receiptBlob;
-  if (!finalReceiptBlob) {
-    const receiptSvg = generateReceiptSvg(m, receiptInfo, { registrarName: approver, registrarCallsign: approverCallsign });
-    finalReceiptBlob = await svgToPngBlob(receiptSvg, 1200, 816);
-  }
-  if (finalReceiptBlob) {
-    docMediaList.push({
-      blob: finalReceiptBlob,
-      filename: `01_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
-      caption: `🧾 <b>ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nผู้ชำระ: ${escapeHtml(m.fullName)} • เล่ม ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo}`
-    });
-  }
-
-  // 3. Render Official Certificate of Membership
+  // 2. Render Official Certificate of Membership (หนังสือรับรองสมาชิกภาพทางการ ลงนามโดยนายกสมาคมฯ)
   let finalCertBlob = certificateBlob;
   if (!finalCertBlob) {
     const certSvg = generateCertificateSvg(m, { registrarName: approver, registrarCallsign: approverCallsign });
-    finalCertBlob = await svgToPngBlob(certSvg, 1200, 1707);
+    finalCertBlob = await svgToPngBlob(certSvg, 1200, 1552);
   }
   if (finalCertBlob) {
     docMediaList.push({
       blob: finalCertBlob,
-      filename: `02_หนังสือรับรองสมาชิก_${m.fullName}.png`,
-      caption: `📜 <b>หนังสือรับรองสถานะการเป็นสมาชิกสมาคม</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nรับรอง: ${escapeHtml(m.fullName)} • สมาชิกเลขที่ ${escapeHtml(m.memberId || '30001')}`
+      filename: `หนังสือรับรองสมาชิก_${m.fullName}.png`,
+      caption: `📜 <b>หนังสือรับรองสถานะการเป็นสมาชิกสมาคม (Certificate)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nรับรอง: ${escapeHtml(m.fullName)} • สมาชิกเลขที่ <b>${escapeHtml(m.memberId || '369113')}</b>`
     });
   }
 
-  // Send the documents as an album or photos
+  // Send the certificate photo
   if (docMediaList.length > 0) {
     await sendTelegramMediaGroup(docMediaList, { botToken: settings.botToken, chatId: settings.chatId });
   }

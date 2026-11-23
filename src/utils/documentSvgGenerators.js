@@ -1,5 +1,4 @@
-// Generator functions for realistic official documents for Samila Amateur Radio Association
-// Produces crisp SVG strings that can be displayed or converted directly to PNG images for download
+// Generator functions for official documents using authentic scanned templates and coordinates
 import { parseAddressAndPostalCode } from './addressUtils.js';
 import { thaiBahtText } from './thaiBahtText.js';
 import savedLayoutSettings from '../data/savedLayoutSettings.json';
@@ -45,25 +44,37 @@ function escapeXml(unsafe) {
 }
 
 function parseThaiDateParts(raw) {
-  if (!raw) return { d: '23', m: '11', mThai: 'พ.ย.', mFull: 'พฤศจิกายน', y: '2569', y2: '69' };
+  if (!raw) return { d: '16', m: '11', mThai: 'พ.ย.', mFull: 'พฤศจิกายน', y: '2569', y2: '69' };
   const parts = String(raw).split(/[/.-]/);
   const thaiMonthsShort = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   const thaiMonthsFull = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
   
   if (parts.length >= 3) {
-    const d = String(parseInt(parts[0], 10) || 1).padStart(2, '0');
-    const mNum = parseInt(parts[1], 10) || 1;
+    const d = String(parseInt(parts[0], 10) || 16);
+    const mNum = parseInt(parts[1], 10) || 11;
     let yNum = parseInt(parts[2], 10) || 2569;
     if (yNum < 2400) yNum += 543;
     const mStr = String(mNum).padStart(2, '0');
-    const mThai = thaiMonthsShort[mNum - 1] || 'ม.ค.';
-    const mFull = thaiMonthsFull[mNum - 1] || 'มกราคม';
+    const mThai = thaiMonthsShort[mNum - 1] || 'พ.ย.';
+    const mFull = thaiMonthsFull[mNum - 1] || 'พฤศจิกายน';
     const yStr = String(yNum);
     const y2 = yStr.slice(-2);
     return { d, m: mStr, mThai, mFull, y: yStr, y2 };
   }
-  return { d: '23', m: '11', mThai: 'พ.ย.', mFull: 'พฤศจิกายน', y: '2569', y2: '69' };
+  return { d: '16', m: '11', mThai: 'พ.ย.', mFull: 'พฤศจิกายน', y: '2569', y2: '69' };
 }
+
+// Secretary Signature Vector (Used on Official Receipts)
+const SECRETARY_SIG_SVG = `<g transform="scale(0.7)"><path d="M12,42 C28,15 48,22 62,38 C75,52 88,20 102,18 C120,16 138,40 152,30 C162,22 178,14 190,26" stroke="#1d4ed8" stroke-width="2.8" fill="none" stroke-linecap="round"/><path d="M38,48 Q78,56 128,45" stroke="#1d4ed8" stroke-width="2.8" fill="none"/><circle cx="160" cy="24" r="3" fill="#1d4ed8" /></g>`;
+
+// President Signature Vector (Used on Official Certificates)
+const PRESIDENT_SIG_SVG = `<g transform="scale(0.8)"><path d="M15,42 Q40,12 65,36 T115,22 Q145,8 175,28 T192,18" stroke="#1e3a8a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M45,46 Q75,54 125,44" stroke="#1e3a8a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M85,16 L98,44" stroke="#1e3a8a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+
+// Registrar Signature Vector (Used on Application forms)
+const REGISTRAR_SIG_SVG = `<g transform="scale(0.65)"><path d="M20,38 Q50,10 80,42 T130,18 Q160,25 185,16" stroke="#0369a1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M50,45 Q90,52 140,42" stroke="#0369a1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M90,20 L105,48" stroke="#0369a1" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+
+// Applicant Signature Vector (Stylized wave stroke)
+const APPLICANT_SIG_SVG = `<g transform="scale(0.65)"><path d="M10,25 C30,10 50,30 70,15 C90,28 110,12 130,22" stroke="#1d4ed8" stroke-width="2.2" fill="none" stroke-linecap="round"/></g>`;
 
 // 1. OFFICIAL APPLICATION FORM (Using real scanned template & saved layout coordinates)
 export function generateApplicationFormSvg(member, settings = {}) {
@@ -72,33 +83,23 @@ export function generateApplicationFormSvg(member, settings = {}) {
   const CANVAS_W = 794;
   const H = 1120;
 
-  const fullName = m.fullName || 'นายทีป์ชลิต ทองจันทร์';
-  let prefix = m.prefix || '';
-  let restOfName = fullName;
-  if (!prefix) {
-    const knownPrefixes = ['ว่าที่ ร.ต.หญิง', 'ว่าที่ ร.ต.', 'นางสาว', 'นาย', 'นาง', 'ร.ต.', 'พ.ต.', 'พ.ต.อ.', 'ด.ต.', 'ด.ช.', 'ด.ญ.'];
-    for (const p of knownPrefixes) {
-      if (fullName.startsWith(p)) {
-        prefix = p;
-        restOfName = fullName.slice(p.length).trim();
-        break;
-      }
-    }
-  } else if (fullName.startsWith(prefix)) {
-    restOfName = fullName.slice(prefix.length).trim();
-  }
-  const parts = restOfName.split(/\s+/);
-  const firstName = m.firstName || parts[0] || restOfName;
-  const lastName = m.lastName || parts.slice(1).join(' ') || '';
+  const rawFullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
+  const nameParts = rawFullName.trim().split(/\s+/);
+  const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0];
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
 
-  const idDigits = String(m.citizenId || '1969900105532').replace(/\D/g, '').padEnd(13, ' ').slice(0, 13).split('');
-  const postalDigits = String(m.postalCode || '90110').replace(/\D/g, '').padEnd(5, ' ').slice(0, 5).split('');
-  const memIdDigits = String(m.memberId || '369115').replace(/\D/g, '').padEnd(7, ' ').slice(0, 7).split('');
+  const cleanCitizen = String(m.citizenId || '1969900105532').replace(/\D/g, '').padEnd(13, ' ');
+  const idDigits = cleanCitizen.slice(0, 13).split('');
 
-  const birthParts = parseThaiDateParts(m.birthDate || '01/01/2535');
+  const parsedAddr = parseAddressAndPostalCode(m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110', m.postalCode);
+  const cleanAddr = parsedAddr.addressLine1 || parsedAddr.cleanAddress;
+  const postalDigits = String(parsedAddr.postalDigits || m.postalCode || '90110').replace(/\D/g, '').padEnd(5, ' ').slice(0, 5).split('');
+  const memIdDigits = String(m.memberId || '369113').replace(/\D/g, '').padEnd(7, ' ').slice(0, 7).split('');
+
+  const birthParts = parseThaiDateParts(m.birthDate || '16/09/2530');
   const issueParts = parseThaiDateParts(m.citizenIssueDate || '10/05/2569');
   const expiryParts = parseThaiDateParts(m.citizenExpiryDate || '09/05/2579');
-  const applyParts = parseThaiDateParts(m.registeredDate || '23/11/2569');
+  const applyParts = parseThaiDateParts(m.registeredDate || '16/11/2569');
 
   const elements = [];
 
@@ -111,12 +112,14 @@ export function generateApplicationFormSvg(member, settings = {}) {
     const bold = item.bold ? 'bold' : 'normal';
 
     if (item.type === 'nameGroup') {
-      const offset = item.lastNameOffsetPx !== undefined ? item.lastNameOffsetPx : 235;
+      const offset = item.lastNameOffsetPx !== undefined ? item.lastNameOffsetPx : 379;
       elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(firstName)}</text>`);
-      elements.push(`<text x="${x + offset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(lastName)}</text>`);
+      if (lastName) {
+        elements.push(`<text x="${x + offset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(lastName)}</text>`);
+      }
     } else if (item.type === 'citizenIdBoxes') {
-      const pitch = item.pitch !== undefined ? item.pitch : 19.5;
-      const groupGap = item.groupGap !== undefined ? item.groupGap : 7.5;
+      const pitch = item.pitch !== undefined ? item.pitch : 18.8;
+      const groupGap = item.groupGap !== undefined ? item.groupGap : 0;
       const digitOffsets = item.digitOffsets || {};
       idDigits.forEach((char, idx) => {
         let extra = 0;
@@ -130,7 +133,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
       });
     } else if (item.type === 'simpleDigitBoxes') {
       const digits = key === 'postalCodeBoxes' ? postalDigits : memIdDigits;
-      const pitch = item.pitch !== undefined ? item.pitch : 17.5;
+      const pitch = item.pitch !== undefined ? item.pitch : (key === 'tierMemberIdBoxes' ? 17 : 18.6);
       const digitOffsets = item.digitOffsets || {};
       digits.forEach((char, idx) => {
         const nudge = digitOffsets[idx] || 0;
@@ -138,50 +141,50 @@ export function generateApplicationFormSvg(member, settings = {}) {
         elements.push(`<text x="${digitX + pitch / 2}" y="${y}" font-family="monospace" font-size="${fs}" fill="${color}" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">${escapeXml(char)}</text>`);
       });
     } else if (item.type === 'dateGroup') {
-      let dVal = '23', mVal = '11', yVal = '69';
-      if (key === 'birthDateGroup') { dVal = birthParts.d; mVal = birthParts.mThai; yVal = birthParts.y2; }
-      else if (key === 'citizenIssueDateGroup') { dVal = issueParts.d; mVal = issueParts.m; yVal = issueParts.y2; }
-      else if (key === 'citizenExpiryDateGroup') { dVal = expiryParts.d; mVal = expiryParts.m; yVal = expiryParts.y2; }
-      else { dVal = applyParts.d; mVal = applyParts.mThai; yVal = applyParts.y2; }
+      let dVal = '16', mVal = '11', yVal = '2569';
+      if (key === 'birthDateGroup') { dVal = birthParts.d; mVal = birthParts.mThai; yVal = birthParts.y; }
+      else if (key === 'citizenIssueDateGroup') { dVal = item.customDay || issueParts.d; mVal = item.customMonth || issueParts.m; yVal = item.customYear || issueParts.y2; }
+      else if (key === 'citizenExpiryDateGroup') { dVal = item.customDay || expiryParts.d; mVal = item.customMonth || expiryParts.m; yVal = item.customYear || expiryParts.y2; }
+      else { dVal = applyParts.d; mVal = applyParts.m; yVal = applyParts.y; }
 
-      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 60;
-      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 130;
+      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 36;
+      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 77;
       elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dVal)}</text>`);
       elements.push(`<text x="${x + mOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(mVal)}</text>`);
       elements.push(`<text x="${x + yOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(yVal)}</text>`);
     } else if (key === 'photoBox') {
       const avatar = m.avatar;
       if (avatar && avatar.startsWith('data:')) {
-        elements.push(`<image href="${avatar}" x="${x}" y="${y}" width="75" height="95" preserveAspectRatio="xMidYMid slice"/>`);
+        elements.push(`<image href="${avatar}" x="${x}" y="${y}" width="80" height="105" preserveAspectRatio="xMidYMid slice" rx="4"/>`);
       } else {
-        elements.push(`<g transform="translate(${x},${y})"><rect width="75" height="95" fill="#f1f5f9" stroke="#cbd5e1" rx="3"/><circle cx="37.5" cy="35" r="18" fill="#0284c7" opacity="0.8"/><path d="M 10 85 C 10 55, 65 55, 65 85 Z" fill="#0369a1" opacity="0.85"/></g>`);
+        elements.push(`<g transform="translate(${x},${y})"><rect width="80" height="105" fill="#f1f5f9" stroke="#94a3b8" rx="4"/><circle cx="40" cy="40" r="20" fill="#0284c7" opacity="0.8"/><path d="M 12 95 C 12 65, 68 65, 68 95 Z" fill="#0369a1" opacity="0.85"/></g>`);
       }
     } else if (key === 'applicantSignature') {
-      elements.push(`<text x="${x}" y="${y}" font-family="'Brush Script MT', cursive, sans-serif" font-size="18" fill="#1e40af" font-weight="bold" dominant-baseline="hanging">${escapeXml(firstName)}</text>`);
-    } else if (key === 'registrarSignature' || key === 'officerSignature') {
-      elements.push(`<g transform="translate(${x},${y})"><path d="M 10 20 Q 30 5 45 18 Q 60 28 75 10 Q 90 20 110 15" stroke="#1d4ed8" stroke-width="2.2" fill="none" stroke-linecap="round"/><text x="35" y="24" font-family="'Brush Script MT', cursive" font-size="13" font-weight="bold" fill="#0369a1">Theepchalit</text></g>`);
+      elements.push(`<g transform="translate(${x},${y})">${APPLICANT_SIG_SVG}</g>`);
+    } else if (key === 'registrarSignature') {
+      elements.push(`<g transform="translate(${x},${y})">${REGISTRAR_SIG_SVG}</g>`);
+    } else if (key === 'officerSignature') {
+      elements.push(`<g transform="translate(${x},${y})">${SECRETARY_SIG_SVG}</g>`);
     } else {
       let val = '';
-      if (key === 'firstName') val = firstName;
-      else if (key === 'lastName') val = lastName;
-      else if (key === 'fullName') val = fullName;
+      if (key === 'fullName') val = rawFullName;
+      else if (key === 'callsignNew') val = m.callsign && m.callsign !== '-' ? m.callsign : 'E26ECG';
       else if (key === 'callsignOld') val = m.callsignType === 'has' && m.callsignSubStatus === 'expired' ? m.callsign : '-';
-      else if (key === 'callsignNew') val = m.callsign && m.callsign !== '-' ? m.callsign : 'รอขอรับใหม่';
       else if (key === 'citizenId') val = m.citizenId || '1969900105532';
       else if (key === 'age') val = String(m.age || '34');
       else if (key === 'genderMaleCheck') val = (m.gender !== 'หญิง') ? '✓' : '';
       else if (key === 'genderFemaleCheck') val = (m.gender === 'หญิง') ? '✓' : '';
       else if (key === 'maritalCheck') val = '✓';
-      else if (key === 'addressLine1') val = m.currentAddress || m.registeredAddress || '';
+      else if (key === 'addressLine1') val = cleanAddr;
       else if (key === 'postalCode') val = m.postalCode || '90110';
-      else if (key === 'phone') val = m.phone || '';
-      else if (key === 'email') val = m.email || '-';
-      else if (key === 'lineId') val = m.lineId || '-';
+      else if (key === 'phone') val = m.phone || '093-792-5665';
+      else if (key === 'email') val = m.email || 'theepchalit@email.com';
+      else if (key === 'lineId') val = m.lineId || 'E26ECG';
       else if (key === 'docIdCardCheck' || key === 'docPhotoCheck' || key === 'tierStandard5YCheck') val = '✓';
-      else if (key === 'startDate') val = m.startDate || '23-11-2569';
-      else if (key === 'endDate') val = m.endDate || '23-11-2574';
-      else if (key === 'officerReceivedAmount') val = (m.memberType || '').includes('ตลอดชีพ') ? '2,500' : '500';
-      else if (key === 'officerReceiptNo') val = '0115';
+      else if (key === 'startDate') val = m.startDate || '16-11-2569';
+      else if (key === 'endDate') val = m.endDate || '15-11-2574';
+      else if (key === 'officerReceivedAmount') val = (m.memberType || '').includes('ตลอดชีพ') ? '2,500' : ((m.memberType || '').includes('องค์กร') ? '0' : '500');
+      else if (key === 'officerReceiptNo') val = '0111';
 
       if (val) {
         elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(val)}</text>`);
@@ -194,7 +197,6 @@ export function generateApplicationFormSvg(member, settings = {}) {
   ${elements.join('\n  ')}
 </svg>`;
 }
-
 // 2. Generate Thai Citizen ID Card Mockup
 export function generateCitizenIdCardSvg(member) {
   const m = member || {};
@@ -490,6 +492,7 @@ export function generateBankSlipSvg(member) {
 }
 
 // 5. Generate Official Certificate of Membership SVG (หนังสือรับรองสถานะการเป็นสมาชิก)
+
 // 5. OFFICIAL CERTIFICATE OF MEMBERSHIP (Using real scanned template & saved layout coordinates)
 export function generateCertificateSvg(member, settings = {}) {
   const m = member || {};
@@ -497,46 +500,42 @@ export function generateCertificateSvg(member, settings = {}) {
   const CANVAS_W = 794;
   const H = 1027;
 
-  const dateParts = parseThaiDateParts(m.registeredDate || m.approvedAt || '23/11/2569');
-  const birthParts = parseThaiDateParts(m.birthDate || '01/01/2535');
+  const rawFullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
+  const dateParts = parseThaiDateParts(m.registeredDate || m.approvedAt || '16/11/2569');
+  const birthParts = parseThaiDateParts(m.birthDate || '16/09/2530');
   const elements = [];
 
   Object.entries(pos).forEach(([key, item]) => {
     if (!item || item.hidden) return;
     const x = (item.x / 100) * CANVAS_W;
     const y = (item.y / 100) * H;
-    const fs = item.fontSize || 14;
-    const color = item.color || '#0f172a';
+    const fs = item.fontSize || 13;
+    const color = item.color || '#0433ff';
     const bold = item.bold ? 'bold' : 'normal';
 
     if (key === 'certDateGroup' || item.type === 'dateGroup') {
-      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 45;
-      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 130;
+      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 20;
+      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 91;
       elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.d)}</text>`);
       elements.push(`<text x="${x + mOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.mFull)}</text>`);
       elements.push(`<text x="${x + yOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.y)}</text>`);
     } else if (key === 'presidentSignature') {
-      elements.push(`<g transform="translate(${x},${y})"><path d="M 10 25 Q 35 5 55 22 Q 75 32 95 12 Q 115 22 135 15" stroke="#1d4ed8" stroke-width="2.5" fill="none" stroke-linecap="round"/><text x="40" y="32" font-family="'Brush Script MT', cursive" font-size="15" font-weight="bold" fill="#0369a1">Thanee R.</text></g>`);
-    } else if (key === 'presidentName') {
-      const presName = settings.presidentName || 'นายธานี รายศิริ';
-      const presTitle = settings.presidentTitle || 'นายกสมาคม';
-      elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">(${escapeXml(presName)})</text>`);
-      elements.push(`<text x="${x}" y="${y + 20}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs - 1}" fill="${color}" dominant-baseline="hanging">${escapeXml(presTitle)}</text>`);
+      elements.push(`<g transform="translate(${x},${y})">${PRESIDENT_SIG_SVG}</g>`);
     } else {
       let val = '';
       if (key === 'headerTitle') val = 'หนังสือรับรองสถานะการเป็นสมาชิก';
       else if (key === 'writtenAt') val = 'สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา';
       else if (key === 'certDate') val = `${dateParts.d} ${dateParts.mFull} ${dateParts.y}`;
-      else if (key === 'memberName') val = m.fullName || 'นายทีป์ชลิต ทองจันทร์';
-      else if (key === 'callsign') val = m.callsign && m.callsign !== '-' ? m.callsign : '-';
+      else if (key === 'memberName') val = rawFullName;
+      else if (key === 'callsign') val = m.callsign && m.callsign !== '-' ? m.callsign : 'E26ECG';
       else if (key === 'citizenId') val = m.citizenId || '1969900105532';
       else if (key === 'birthDate') val = `${birthParts.d} ${birthParts.mFull} ${birthParts.y}`;
-      else if (key === 'registeredAddress') val = m.registeredAddress || m.currentAddress || '';
-      else if (key === 'phone') val = m.phone || '';
-      else if (key === 'memberId') val = String(m.memberId || '369115');
+      else if (key === 'registeredAddress') val = m.registeredAddress || m.currentAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
+      else if (key === 'phone') val = m.phone || '093-792-5665';
+      else if (key === 'memberId') val = String(m.memberId || '369113');
       else if (key === 'memberType') val = m.memberType || 'สมาชิกสามัญ 5 ปี';
-      else if (key === 'startDate') val = m.startDate || '23-11-2569';
-      else if (key === 'endDate') val = m.endDate || '23-11-2574';
+      else if (key === 'startDate') val = m.startDate || '16 พฤศจิกายน 2569';
+      else if (key === 'endDate') val = m.endDate || '15 พฤศจิกายน 2574';
 
       if (val) {
         elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(val)}</text>`);
@@ -557,12 +556,14 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const CANVAS_W = 794;
   const H = 1078;
 
-  const dateParts = parseThaiDateParts(m.registeredDate || m.approvedAt || '23/11/2569');
+  const rawFullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
+  const dateParts = parseThaiDateParts(m.registeredDate || m.approvedAt || '16/11/2569');
   const bookNo = String(receiptInfo.bookNo || '03');
-  const receiptNo = String(receiptInfo.receiptNo || '0115');
+  const receiptNo = String(receiptInfo.receiptNo || '0111');
   const isLifetime = (m.memberType || '').includes('ตลอดชีพ');
-  const amountStr = isLifetime ? '2,500.00' : '500.00';
-  const amountText = isLifetime ? 'สองพันห้าร้อยบาทถ้วน' : 'ห้าร้อยบาทถ้วน';
+  const isOrg = (m.memberType || '').includes('องค์กร') || (m.memberType || '').includes('กิตติมศักดิ์');
+  const amountStr = isLifetime ? '2,500.00' : (isOrg ? '0' : '500.00');
+  const amountText = isLifetime ? 'สองพันห้าร้อยบาทถ้วน' : (isOrg ? 'ไม่ต้องชำระค่าบำรุง' : 'ห้าร้อยบาทถ้วน');
 
   const elements = [];
 
@@ -575,26 +576,26 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
     const bold = item.bold ? 'bold' : 'normal';
 
     if (key === 'receiptDateGroup' || item.type === 'dateGroup') {
-      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 116;
-      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 249;
+      const mo = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 116;
+      const yo = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 249;
       elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.d)}</text>`);
-      elements.push(`<text x="${x + mOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.mThai)}</text>`);
-      elements.push(`<text x="${x + yOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.y)}</text>`);
+      elements.push(`<text x="${x + mo}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.mThai)}</text>`);
+      elements.push(`<text x="${x + yo}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(dateParts.y)}</text>`);
     } else if (key === 'signature') {
-      elements.push(`<g transform="translate(${x},${y})"><path d="M 10 25 Q 30 5 45 20 Q 60 30 75 10 Q 90 20 110 15" stroke="#1d4ed8" stroke-width="2.5" fill="none" stroke-linecap="round"/><text x="40" y="28" font-family="'Brush Script MT', cursive" font-size="14" font-weight="bold" fill="#0369a1">Theepchalit</text></g>`);
+      elements.push(`<g transform="translate(${x},${y})">${SECRETARY_SIG_SVG}</g>`);
     } else {
       let val = '';
       if (key === 'bookNo') val = bookNo;
       else if (key === 'receiptNo') val = receiptNo;
-      else if (key === 'payerName') val = m.fullName || 'นายทีป์ชลิต ทองจันทร์';
-      else if (key === 'memberId') val = String(m.memberId || '369115');
-      else if (key === 'address') val = m.currentAddress || m.registeredAddress || '';
-      else if (key === 'phone') val = m.phone || '';
+      else if (key === 'payerName') val = rawFullName;
+      else if (key === 'memberId') val = String(m.memberId || '369113');
+      else if (key === 'address') val = m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
+      else if (key === 'phone') val = m.phone || '093-792-5665';
       else if (key === 'memberFeeCheck' || key === 'memberFeeTypeCheck') val = '✓';
-      else if (key === 'memberFeeAmount') val = amountStr;
+      else if (key === 'memberFeeAmount') val = isOrg ? '' : amountStr;
       else if (key === 'totalAmountNumber') val = amountStr;
       else if (key === 'totalAmountText') val = amountText;
-      else if (key === 'signerPosition') val = settings.registrarTitle || 'เหรัญญิก / ผู้ช่วยนายทะเบียน';
+      else if (key === 'signerPosition') val = 'เลขาธิการ / ผู้อำนวยการฝ่ายเทคโนโลยี';
 
       if (val) {
         elements.push(`<text x="${x}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(val)}</text>`);
