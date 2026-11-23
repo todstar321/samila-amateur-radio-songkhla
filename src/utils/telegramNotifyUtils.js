@@ -491,7 +491,7 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     return { ok: true, message: 'Application text sent' };
   }
 
-  // 2. ALBUM 1: OFFICIAL APPLICATION DOCUMENTS (ใบเสร็จรับเงิน และ ใบสมัครสมาชิก)
+  // 2. OFFICIAL APPLICATION DOCUMENTS (ใบเสร็จรับเงิน และ ใบสมัครสมาชิก)
   const officialDocsList = [];
 
   // 2.1 Official Receipt (e-Receipt - ลำดับที่ 1 ตามที่สมาคมฯ กำหนด)
@@ -502,7 +502,7 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
       officialDocsList.push({
         blob: receiptBlob,
         filename: `01_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
-        caption: `🧾 <b>1. ใบเสร็จรับเงินอิเล็กทรอนิกส์ (e-Receipt)</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • ค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
+        caption: `🧾 <b>ใบเสร็จรับเงิน (e-Receipt) - ${escapeHtml(m.fullName)}</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • สมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)\nค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
       });
     }
   } catch (e) {
@@ -520,35 +520,33 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
         console.warn('Avatar dataUri convert error:', err);
       }
     }
-    const appSvg = generateApplicationFormSvg(appMember, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    const appSvg = generateApplicationFormSvg(appMember, { 
+      registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
+      registrarCallsign: 'E26ECG',
+      receiptNo: receiptInfo.receiptNo
+    });
     const appBlob = await svgToPngBlob(appSvg, 1200, 1693);
     if (appBlob) {
       officialDocsList.push({
         blob: appBlob,
         filename: `02_ใบสมัครสมาชิก_${m.fullName}.png`,
-        caption: `📄 <b>2. ใบสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)</b>\nผู้สมัคร: ${escapeHtml(m.fullName)} • นามเรียกขาน: ${escapeHtml(m.callsign || 'ขอรับใหม่')}`
+        caption: `📄 <b>ใบสมัครสมาชิกสมาคม (แบบคำขอทางการ) - ${escapeHtml(m.fullName)}</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nผู้สมัคร: ${escapeHtml(m.fullName)} • นามเรียกขาน: ${escapeHtml(m.callsign && m.callsign !== '-' ? m.callsign : 'ขอรับใหม่')}`
       });
     }
   } catch (e) {
     console.warn('App form render error:', e);
   }
 
-  // Send Album 1 (Official Documents: ใบเสร็จ + ใบสมัคร)
-  if (officialDocsList.length > 0) {
-    await sendTelegramMediaGroup(officialDocsList, { botToken: settings.botToken, chatId: settings.chatId });
-    await new Promise(r => setTimeout(r, 600));
-  }
-
-  // 3. ALBUM 2: ATTACHED APPLICANT EVIDENCE (รูปถ่าย, สำเนาบัตรประชาชน, ทะเบียนบ้าน, สลิปโอนเงิน)
+  // 3. ATTACHED APPLICANT EVIDENCE (รูปถ่าย, สำเนาบัตรประชาชน, ทะเบียนบ้าน, สลิปโอนเงิน)
   const evidenceList = [];
 
-  // 3.1 Photo Avatar (1 inch)
+  // 3.1 Photo Avatar (1-2 inch)
   let avatarBlob = await dataUrlToBlob(m.avatar);
   if (avatarBlob) {
     evidenceList.push({
       blob: avatarBlob,
-      filename: `03_รูปถ่าย1นิ้ว_${m.fullName}.jpg`,
-      caption: `👤 <b>3. รูปถ่ายหน้าตรง 1 นิ้ว</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+      filename: `03_รูปถ่าย_${m.fullName}.jpg`,
+      caption: `👤 <b>รูปถ่ายหน้าตรง 1-2 นิ้ว - ${escapeHtml(m.fullName)}</b>\nผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}`
     });
   }
 
@@ -562,7 +560,7 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: idCardBlob,
       filename: `04_สำเนาบัตรประชาชน_${m.fullName}.png`,
-      caption: `🪪 <b>4. สำเนาบัตรประจำตัวประชาชน</b>\nเลขที่: <code>${escapeHtml(m.citizenId)}</code>`
+      caption: `🪪 <b>สำเนาบัตรประจำตัวประชาชน - ${escapeHtml(m.fullName)}</b>\nเลขประจำตัวประชาชน: <code>${escapeHtml(m.citizenId || '-')}</code>`
     });
   }
 
@@ -576,7 +574,7 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: houseBlob,
       filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
-      caption: `🏠 <b>5. สำเนาทะเบียนบ้าน</b>\nผู้สมัคร: ${escapeHtml(m.fullName)}`
+      caption: `🏠 <b>สำเนาทะเบียนบ้าน (ท.ร.14) - ${escapeHtml(m.fullName)}</b>\nที่อยู่: ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}`
     });
   }
 
@@ -590,13 +588,21 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: transferBlob,
       filename: `06_สลิปโอนเงิน_${m.fullName}.png`,
-      caption: `💸 <b>6. หลักฐานการโอนเงินค่าบำรุงสมาชิก</b>\nจำนวน: ${escapeHtml(feeText)}`
+      caption: `💸 <b>สลิปหลักฐานการโอนเงิน - ${escapeHtml(m.fullName)}</b>\nยอดเงินโอน: ${escapeHtml(feeText)}`
     });
   }
 
-  // Send Album 2 (Evidence attachments)
-  if (evidenceList.length > 0) {
-    await sendTelegramMediaGroup(evidenceList, { botToken: settings.botToken, chatId: settings.chatId });
+  // Send all documents as distinct individual photos with dedicated captions (ไม่จัดเป็นอัลบั้มรวมตามที่ผู้ใช้ต้องการ)
+  const allPhotosToSend = [...officialDocsList, ...evidenceList];
+  for (const item of allPhotosToSend) {
+    if (item && item.blob) {
+      await sendTelegramPhoto(item.blob, item.caption, {
+        botToken: settings.botToken,
+        chatId: settings.chatId,
+        filename: item.filename
+      });
+      await new Promise(r => setTimeout(r, 400));
+    }
   }
 
   return { ok: true, docCount: officialDocsList.length, evidenceCount: evidenceList.length };
@@ -644,8 +650,6 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
     return { ok: true, message: 'Approval announcement sent' };
   }
 
-  const docMediaList = [];
-
   // 2. Render Official Certificate of Membership (หนังสือรับรองสมาชิกภาพทางการ ลงนามโดยนายกสมาคมฯ)
   let finalCertBlob = certificateBlob;
   if (!finalCertBlob) {
@@ -653,17 +657,30 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
     finalCertBlob = await svgToPngBlob(certSvg, 1200, 1552);
   }
   if (finalCertBlob) {
-    docMediaList.push({
-      blob: finalCertBlob,
-      filename: `หนังสือรับรองสมาชิก_${m.fullName}.png`,
-      caption: `📜 <b>หนังสือรับรองสถานะการเป็นสมาชิกสมาคม (Certificate)</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nรับรอง: ${escapeHtml(m.fullName)} • สมาชิกเลขที่ <b>${escapeHtml(m.memberId || '369113')}</b>`
-    });
+    await sendTelegramPhoto(
+      finalCertBlob,
+      `📜 <b>หนังสือรับรองสถานะการเป็นสมาชิกภาพ (Certificate) - ${escapeHtml(m.fullName)}</b>\nสมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)\nรับรอง: ${escapeHtml(m.fullName)} • สมาชิกเลขที่ <b>${escapeHtml(m.memberId || '369113')}</b>`,
+      {
+        botToken: settings.botToken,
+        chatId: settings.chatId,
+        filename: `หนังสือรับรองสมาชิก_${m.fullName}.png`
+      }
+    );
   }
 
-  // Send the certificate photo
-  if (docMediaList.length > 0) {
-    await sendTelegramMediaGroup(docMediaList, { botToken: settings.botToken, chatId: settings.chatId });
+  // 3. Render Official Receipt if provided
+  if (receiptBlob) {
+    await new Promise(r => setTimeout(r, 400));
+    await sendTelegramPhoto(
+      receiptBlob,
+      `🧾 <b>ใบเสร็จรับเงินฉบับอนุมัติ - ${escapeHtml(m.fullName)}</b>\nเล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo} • สมาคมวิทยุสมัครเล่นสมิหลา (HS9AS)`,
+      {
+        botToken: settings.botToken,
+        chatId: settings.chatId,
+        filename: `ใบเสร็จรับเงิน_${m.fullName}.png`
+      }
+    );
   }
 
-  return { ok: true, docCount: docMediaList.length };
+  return { ok: true, docCount: (finalCertBlob ? 1 : 0) + (receiptBlob ? 1 : 0) };
 }

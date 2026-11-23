@@ -72,7 +72,12 @@ function getReceiptTierPositions() {
  */
 function getMemberTierKey(member) {
   if (!member) return 'fiveYear';
-  if (member.membershipTierKey) return member.membershipTierKey;
+  const rawKey = String(member.membershipTierKey || member.tierKey || '').trim().toLowerCase();
+  if (rawKey === '1' || rawKey === 'honorary' || rawKey.includes('กิตติมศักดิ์')) return 'honorary';
+  if (rawKey === '2' || rawKey === 'lifetime' || rawKey.includes('ตลอดชีพ')) return 'lifetime';
+  if (rawKey === '3' || rawKey === 'fiveyear' || rawKey === '5year' || rawKey.includes('5') || rawKey.includes('สามัญ')) return 'fiveYear';
+  if (rawKey === '4' || rawKey === 'radioorg' || rawKey === 'org' || rawKey.includes('องค์กร')) return 'radioOrg';
+
   const mType = String(member.memberType || '').toLowerCase();
   if (mType.includes('ตลอดชีพ')) return 'lifetime';
   if (mType.includes('กิตติมศักดิ์')) return 'honorary';
@@ -151,7 +156,8 @@ const APPLICANT_SIG_SVG = `<g transform="scale(0.65)"><path d="M10,25 C30,10 50,
 // 1. OFFICIAL APPLICATION FORM (Using real scanned template & saved layout coordinates)
 export function generateApplicationFormSvg(member, settings = {}) {
   const m = member || {};
-  const pos = getActiveLayout('application');
+  const pos = settings.positions || getActiveLayout('application');
+  const templateBg = settings.templateBackground || DEFAULT_APP_TEMPLATE_BASE64;
   const CANVAS_W = 794;
   const H = 1120;
 
@@ -174,7 +180,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
   const applyParts = parseThaiDateParts(m.registeredDate || '16/11/2569');
 
   const tierKey = getMemberTierKey(m);
-  const appTiers = getAppTierPositions();
+  const appTiers = settings.tierPositions || getAppTierPositions();
   const activeAppTier = appTiers[tierKey] || {
     honorary: { check: { x: 8.43, y: 59.49 }, boxes: { x: 66.29, y: 59.29 } },
     lifetime: { check: { x: 8.43, y: 62.29 }, boxes: { x: 66.29, y: 62.29 } },
@@ -183,26 +189,26 @@ export function generateApplicationFormSvg(member, settings = {}) {
   }[tierKey] || { check: { x: 8.57, y: 65.29 }, boxes: { x: 66.3, y: 65.39 } };
 
   // Determine callsignOld and callsignNew
-  let callsignOldVal = '-';
-  let callsignNewVal = '-';
+  let callsignOldVal = '';
+  let callsignNewVal = '';
   if (m.callsignType === 'has') {
     if (m.callsignSubStatus === 'expired') {
-      callsignOldVal = (m.formerCallsign && m.formerCallsign !== '-') ? m.formerCallsign : (m.callsign && m.callsign !== '-' ? m.callsign : '-');
-      callsignNewVal = '-';
+      callsignOldVal = (m.formerCallsign && m.formerCallsign !== '-') ? m.formerCallsign : (m.callsign && m.callsign !== '-' ? m.callsign : '');
+      callsignNewVal = '';
     } else {
-      callsignOldVal = (m.formerCallsign && m.formerCallsign !== '-') ? m.formerCallsign : '-';
-      callsignNewVal = m.callsign && m.callsign !== '-' ? m.callsign : '-';
+      callsignOldVal = (m.formerCallsign && m.formerCallsign !== '-') ? m.formerCallsign : '';
+      callsignNewVal = m.callsign && m.callsign !== '-' ? m.callsign : '';
     }
   } else if (m.callsignType === 'new') {
-    callsignOldVal = '-';
-    callsignNewVal = '-';
+    callsignOldVal = '';
+    callsignNewVal = '';
   } else {
     if (m.formerCallsign && m.formerCallsign !== '-') {
       callsignOldVal = m.formerCallsign;
-      callsignNewVal = m.callsign && m.callsign !== '-' ? m.callsign : '-';
+      callsignNewVal = m.callsign && m.callsign !== '-' ? m.callsign : '';
     } else if (m.callsign && m.callsign !== '-') {
       callsignNewVal = m.callsign;
-      callsignOldVal = '-';
+      callsignOldVal = '';
     }
   }
 
@@ -299,7 +305,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
       else if (key === 'startDate') val = m.startDate || '16-11-2569';
       else if (key === 'endDate') val = m.endDate || '15-11-2574';
       else if (key === 'officerReceivedAmount') val = tierKey === 'lifetime' ? '2,500' : (tierKey === 'fiveYear' ? '500' : '0');
-      else if (key === 'officerReceiptNo') val = m.receiptNo || '0111';
+      else if (key === 'officerReceiptNo') val = m.receiptNo || settings.receiptNo || '0111';
 
       if (val) {
         elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(val)}</text>`);
@@ -308,7 +314,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${DEFAULT_APP_TEMPLATE_BASE64}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }
@@ -611,7 +617,8 @@ export function generateBankSlipSvg(member) {
 // 5. OFFICIAL CERTIFICATE OF MEMBERSHIP (Using real scanned template & saved layout coordinates)
 export function generateCertificateSvg(member, settings = {}) {
   const m = member || {};
-  const pos = getActiveLayout('certificate');
+  const pos = settings.positions || getActiveLayout('certificate');
+  const templateBg = settings.templateBackground || DEFAULT_CERT_TEMPLATE_BASE64;
   const CANVAS_W = 794;
   const H = 1027;
 
@@ -659,7 +666,7 @@ export function generateCertificateSvg(member, settings = {}) {
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${DEFAULT_CERT_TEMPLATE_BASE64}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }
@@ -667,7 +674,8 @@ export function generateCertificateSvg(member, settings = {}) {
 // 6. OFFICIAL RECEIPT (Using real scanned template & saved layout coordinates)
 export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const m = member || {};
-  const pos = getActiveLayout('receipt');
+  const pos = settings.positions || getActiveLayout('receipt');
+  const templateBg = settings.templateBackground || DEFAULT_RECEIPT_TEMPLATE_BASE64;
   const CANVAS_W = 794;
   const H = 1078;
 
@@ -677,7 +685,7 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const receiptNo = String(receiptInfo.receiptNo || m.receiptNo || '0111');
   
   const tierKey = getMemberTierKey(m);
-  const receiptTiers = getReceiptTierPositions();
+  const receiptTiers = settings.tierPositions || getReceiptTierPositions();
   const activeReceiptTier = receiptTiers[tierKey] || {
     honorary: { check: { x: 11.17, y: 55.66 }, amount: { x: 83, y: 56.6 } },
     lifetime: { check: { x: 11.18, y: 58.94 }, amount: { x: 79.87, y: 58.52 } },
@@ -738,7 +746,7 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${DEFAULT_RECEIPT_TEMPLATE_BASE64}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }

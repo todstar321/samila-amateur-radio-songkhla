@@ -213,6 +213,10 @@ export default function AdminDashboard({
     setTimeout(() => setToastMessage(''), 3500);
   };
 
+  // Pending applications for notification pill
+  const pendingMembers = membersList.filter(m => m.status === 'รอตรวจสอบ' || m.status === 'pending');
+  const pendingCount = pendingMembers.length;
+
   // Filter members
   const filteredMembers = membersList.filter(mem => {
     const query = searchQuery.toLowerCase();
@@ -934,6 +938,28 @@ export default function AdminDashboard({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* New Applicants Notification Pill (ปุ่มแจ้งเตือนผู้สมัครใหม่) */}
+            {pendingCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('members');
+                  setMemberRoleFilter('pending');
+                  if (pendingMembers[0]) {
+                    setReviewingApplicationMember(pendingMembers[0]);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 px-2.5 sm:px-3 py-1.5 rounded-lg font-bold shadow-md ring-2 ring-amber-300/80 transition cursor-pointer animate-pulse"
+                title={`มีใบสมัครใหม่รอตรวจสอบ ${pendingCount} ท่าน - คลิกเพื่อเปิดดูและอนุมัติทันที`}
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-950 animate-bounce" />
+                <span className="hidden sm:inline">ผู้สมัครใหม่</span>
+                <span className="text-[10px] bg-rose-600 text-white px-1.5 py-0.2 rounded-full font-black font-mono shadow-xs">
+                  {pendingCount}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={() => setActiveTab('cloudinary')}
               className="inline-flex items-center gap-1.5 text-xs text-white bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold shadow-xs transition cursor-pointer"

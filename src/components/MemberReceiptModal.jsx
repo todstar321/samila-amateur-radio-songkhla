@@ -19,12 +19,13 @@ import AssociationLogo from './AssociationLogo';
 import DeveloperCredit from './DeveloperCredit';
 import DocumentExportModal from './DocumentExportModal';
 import { RECEIPT_TIERS, DEFAULT_RECEIPT_TIER_POSITIONS } from './DocumentStudio';
-import { captureElementToDataUrl } from '../utils/documentExportUtils';
 import { thaiBahtText } from '../utils/thaiBahtText';
 import { getSavedOfficers } from '../data/defaultSignatures';
 import { DEFAULT_RECEIPT_TEMPLATE_BASE64 } from '../assets/defaultTemplates';
 import { getCurrentReceiptInfo } from '../utils/sequenceNumberUtils';
 import { fetchCentralLayoutSettings } from '../utils/layoutSyncUtils';
+import { generateReceiptSvg } from '../utils/documentSvgGenerators';
+import { svgToPngBlob } from '../utils/telegramNotifyUtils';
 
 // Default positions matching the real scanned physical receipt
 const DEFAULT_RECEIPT_POSITIONS = {
@@ -210,17 +211,23 @@ export default function MemberReceiptModal({
   if (!isOpen) return null;
 
   const handleDirectDownload = async () => {
-    if (!printRef.current) return;
     try {
       setIsExporting(true);
-      const dataUri = await captureElementToDataUrl(printRef.current, { scale: 2 });
-      if (dataUri) {
+      const svg = generateReceiptSvg(activeMember, receiptRecord || {}, {
+        positions,
+        tierPositions,
+        templateBackground: bgTemplate
+      });
+      const blob = await svgToPngBlob(svg, 1200, 1629);
+      if (blob) {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = dataUri;
+        link.href = url;
         link.download = `Receipt_${receiptRecord?.callsign || 'HS9AS'}_${receiptRecord?.receiptNo || '0111'}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
     } catch (e) {
       console.error('Direct download failed:', e);
@@ -231,19 +238,24 @@ export default function MemberReceiptModal({
   };
 
   const handlePrint = async () => {
-    if (!printRef.current) {
-      window.print();
-      return;
-    }
     setIsExporting(true);
     setExportModalOpen(true);
     setExportedImageUri(null);
 
-    await new Promise(resolve => setTimeout(resolve, 200));
-
     try {
-      const dataUri = await captureElementToDataUrl(printRef.current, { scale: 2 });
-      setExportedImageUri(dataUri);
+      const svg = generateReceiptSvg(activeMember, receiptRecord || {}, {
+        positions,
+        tierPositions,
+        templateBackground: bgTemplate
+      });
+      const blob = await svgToPngBlob(svg, 1200, 1629);
+      if (blob) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setExportedImageUri(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      }
     } catch (err) {
       console.error('Failed to capture receipt:', err);
     } finally {
@@ -271,6 +283,12 @@ export default function MemberReceiptModal({
   };
   const activeTierKey = getReceiptTierKey();
   const tunedTierPos = tierPositions?.[activeTierKey] || DEFAULT_RECEIPT_TIER_POSITIONS[activeTierKey];
+
+  const receiptSvg = generateReceiptSvg(activeMember, receiptRecord || {}, {
+    positions,
+    tierPositions,
+    templateBackground: bgTemplate
+  });
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:fixed print:inset-0 animate-in fade-in duration-200">
@@ -332,299 +350,12 @@ export default function MemberReceiptModal({
         {/* ================= AUTHENTIC PHYSICAL RECEIPT BODY ================= */}
         <div 
           ref={printRef}
-          className="p-4 sm:p-6 bg-slate-100/70 text-slate-900 font-sans overflow-y-auto flex-1 print:p-0 print:overflow-visible relative flex justify-center"
+          className="p-4 sm:p-6 bg-slate-100/70 text-slate-900 font-sans overflow-y-auto flex-1 print:p-0 print:overflow-visible relative flex justify-center items-center"
         >
-          <div className="relative border border-slate-300 rounded-xl overflow-hidden bg-white shadow-xl max-w-full print:border-none print:shadow-none" style={{ width: '640px' }}>
-            
-            {/* Scanned Template Background Image */}
-            <img 
-              src={bgTemplate} 
-              alt="Official Scanned Receipt Template" 
-              className="w-full h-auto block select-none pointer-events-none"
-            />
-            
-            {/* Overlay live data matching physical receipt layout */}
-            
-            {/* Book No */}
-            {!positions.bookNo?.hidden && (
-              <div 
-                className="absolute font-mono font-bold text-rose-600 select-none"
-                style={{ 
-                  left: `${positions.bookNo?.x || 15.0}%`, 
-                  top: `${positions.bookNo?.y || 4.8}%`,
-                  fontSize: `${positions.bookNo?.fontSize || 16}px`
-                }}
-              >
-                {receiptRecord?.bookNo || '03'}
-              </div>
-            )}
-
-            {/* Receipt No */}
-            {!positions.receiptNo?.hidden && (
-              <div 
-                className="absolute font-mono font-bold text-rose-600 select-none"
-                style={{ 
-                  left: `${positions.receiptNo?.x || 82.5}%`, 
-                  top: `${positions.receiptNo?.y || 6.2}%`,
-                  fontSize: `${positions.receiptNo?.fontSize || 18}px`
-                }}
-              >
-                {receiptRecord?.receiptNo || '0111'}
-              </div>
-            )}
-
-            {/* Date Grouped or Separate */}
-            {positions.receiptDateGroup && !positions.receiptDateGroup.hidden ? (
-              <div 
-                className="absolute font-sans font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.receiptDateGroup.x || 52.8}%`, 
-                  top: `${positions.receiptDateGroup.y || 24.2}%`,
-                  fontSize: `${positions.receiptDateGroup.fontSize || 15}px`,
-                  color: positions.receiptDateGroup.color || '#0f172a',
-                  fontWeight: positions.receiptDateGroup.bold ? 'bold' : 'normal',
-                  minWidth: `${(positions.receiptDateGroup.yearOffsetPx || 235) + 60}px`
-                }}
-              >
-                <span style={{ position: 'absolute', left: 0, top: 0 }}>
-                  {receiptRecord?.date ? receiptRecord.date.split(' ')[0] : '16'}
-                </span>
-                <span style={{ position: 'absolute', left: `${positions.receiptDateGroup.monthOffsetPx || 105}px`, top: 0 }}>
-                  {receiptRecord?.date ? receiptRecord.date.split(' ')[1] : 'พ.ย.'}
-                </span>
-                <span style={{ position: 'absolute', left: `${positions.receiptDateGroup.yearOffsetPx || 235}px`, top: 0 }}>
-                  {receiptRecord?.date ? receiptRecord.date.split(' ')[2] : '2569'}
-                </span>
-              </div>
-            ) : (
-              <>
-                {/* Date: Day */}
-                {!positions.dateDay?.hidden && (
-                  <div 
-                    className="absolute font-sans font-bold text-slate-900 select-none"
-                    style={{ 
-                      left: `${positions.dateDay?.x || 52.8}%`, 
-                      top: `${positions.dateDay?.y || 24.2}%`,
-                      fontSize: `${positions.dateDay?.fontSize || 15}px`
-                    }}
-                  >
-                    16
-                  </div>
-                )}
-
-                {/* Date: Month */}
-                {!positions.dateMonth?.hidden && (
-                  <div 
-                    className="absolute font-sans font-bold text-slate-900 select-none"
-                    style={{ 
-                      left: `${positions.dateMonth?.x || 67.5}%`, 
-                      top: `${positions.dateMonth?.y || 24.2}%`,
-                      fontSize: `${positions.dateMonth?.fontSize || 15}px`
-                    }}
-                  >
-                    พ.ย.
-                  </div>
-                )}
-
-                {/* Date: Year */}
-                {!positions.dateYear?.hidden && (
-                  <div 
-                    className="absolute font-sans font-bold text-slate-900 select-none"
-                    style={{ 
-                      left: `${positions.dateYear?.x || 84.8}%`, 
-                      top: `${positions.dateYear?.y || 24.2}%`,
-                      fontSize: `${positions.dateYear?.fontSize || 15}px`
-                    }}
-                  >
-                    2569
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Payer Name */}
-            {!positions.payerName?.hidden && (
-              <div 
-                className="absolute font-sans font-bold text-slate-900 select-none truncate"
-                style={{ 
-                  left: `${positions.payerName?.x || 21.0}%`, 
-                  top: `${positions.payerName?.y || 31.0}%`,
-                  fontSize: `${positions.payerName?.fontSize || 15}px`,
-                  maxWidth: '52%' 
-                }}
-              >
-                {receiptRecord?.payerName}
-              </div>
-            )}
-
-            {/* Member ID */}
-            {!positions.memberId?.hidden && (
-              <div 
-                className="absolute font-mono font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.memberId?.x || 79.5}%`, 
-                  top: `${positions.memberId?.y || 31.0}%`,
-                  fontSize: `${positions.memberId?.fontSize || 15}px`
-                }}
-              >
-                {receiptRecord?.memberId}
-              </div>
-            )}
-
-            {/* Address */}
-            {!positions.address?.hidden && (
-              <div 
-                className="absolute font-sans text-slate-900 select-none truncate"
-                style={{ 
-                  left: `${positions.address?.x || 10.0}%`, 
-                  top: `${positions.address?.y || 35.2}%`,
-                  fontSize: `${positions.address?.fontSize || 13}px`,
-                  maxWidth: '58%' 
-                }}
-              >
-                {receiptRecord?.address}
-              </div>
-            )}
-
-            {/* Phone */}
-            {!positions.phone?.hidden && (
-              <div 
-                className="absolute font-mono font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.phone?.x || 70.5}%`, 
-                  top: `${positions.phone?.y || 35.2}%`,
-                  fontSize: `${positions.phone?.fontSize || 13}px`
-                }}
-              >
-                {receiptRecord?.phone}
-              </div>
-            )}
-
-            {/* Checkbox for Member Fee Category (Tick mark) */}
-            {!positions.memberFeeTypeCheck?.hidden && (
-              <div 
-                className="absolute font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${tunedTierPos?.check?.x ?? positions.memberFeeTypeCheck?.x ?? 9.5}%`, 
-                  top: `${tunedTierPos?.check?.y ?? positions.memberFeeTypeCheck?.y ?? activeReceiptTier.rowY}%`,
-                  fontSize: `${positions.memberFeeTypeCheck?.fontSize || 18}px`
-                }}
-              >
-                ✓
-              </div>
-            )}
-
-            {/* Fee Amount in Row */}
-            {!positions.memberFeeAmount?.hidden && activeReceiptTier.showAmountInRow && (
-              <div 
-                className="absolute font-mono font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${tunedTierPos?.amount?.x ?? positions.memberFeeAmount?.x ?? 83.0}%`, 
-                  top: `${tunedTierPos?.amount?.y ?? positions.memberFeeAmount?.y ?? activeReceiptTier.rowY}%`,
-                  fontSize: `${positions.memberFeeAmount?.fontSize || 15}px`
-                }}
-              >
-                {receiptRecord?.amount ? Number(receiptRecord.amount).toLocaleString('th-TH') : activeReceiptTier.feeFormatted}
-              </div>
-            )}
-
-            {/* Slash mark in Amount Column */}
-            {!positions.slashMark?.hidden && (
-              <div 
-                className="absolute font-light text-slate-800 select-none pointer-events-none"
-                style={{ 
-                  left: `${positions.slashMark?.x || 84.0}%`, 
-                  top: `${positions.slashMark?.y || 54.0}%`,
-                  fontSize: `${positions.slashMark?.fontSize || 24}px`
-                }}
-              >
-                /
-              </div>
-            )}
-
-            {/* Total Amount in Words (Thai Text) */}
-            {!positions.totalAmountText?.hidden && (
-              <div 
-                className="absolute font-sans font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.totalAmountText?.x || 26.0}%`, 
-                  top: `${positions.totalAmountText?.y || 81.0}%`,
-                  fontSize: `${positions.totalAmountText?.fontSize || 15}px`
-                }}
-              >
-                {receiptRecord?.amountText || activeReceiptTier.feeText}
-              </div>
-            )}
-
-            {/* Total Amount in Number */}
-            {!positions.totalAmountNumber?.hidden && (
-              <div 
-                className="absolute font-mono font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.totalAmountNumber?.x || 79.5}%`, 
-                  top: `${positions.totalAmountNumber?.y || 79.2}%`,
-                  fontSize: `${positions.totalAmountNumber?.fontSize || 20}px`
-                }}
-              >
-                {activeReceiptTier.feeAmount > 0 
-                  ? (receiptRecord?.amount ? Number(receiptRecord.amount).toLocaleString('th-TH') : activeReceiptTier.feeFormatted)
-                  : '0'}
-              </div>
-            )}
-
-            {/* Official Blue Association Stamp Impression Overlay */}
-            <div 
-              className="absolute pointer-events-none select-none rotate-[-10deg] opacity-80"
-              style={{ left: '48.0%', top: '84.0%' }}
-            >
-              <div className="w-20 h-20 rounded-full border-2 border-blue-600/70 p-1 flex items-center justify-center text-center">
-                <div className="w-full h-full rounded-full border border-dashed border-blue-600/80 flex flex-col items-center justify-center p-1">
-                  <span className="text-[6px] font-bold text-blue-700 leading-tight">สมาคมวิทยุสมัครเล่นสมิหลา</span>
-                  <span className="text-[8px] font-black text-blue-800 font-mono my-0.2">HS9AS</span>
-                  <span className="text-[5.5px] text-blue-600 leading-tight">สงขลา</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Authentic Hand Signature of Officer (ผอ.โต๊ด) */}
-            {!positions.signature?.hidden && (
-              <div 
-                className="absolute select-none w-32 h-12 z-10"
-                style={{ 
-                  left: `${positions.signature?.x || 62.0}%`, 
-                  top: `${positions.signature?.y || 86.0}%` 
-                }}
-              >
-                {secretaryOfficer?.signatureImage ? (
-                  <img 
-                    src={secretaryOfficer.signatureImage} 
-                    alt="Signature" 
-                    className="max-h-full mix-blend-multiply" 
-                  />
-                ) : (
-                  <div 
-                    className="w-full h-full"
-                    dangerouslySetInnerHTML={{ __html: secretaryOfficer?.signatureSvg || '' }}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Officer Position */}
-            {!positions.signerPosition?.hidden && (
-              <div 
-                className="absolute font-sans font-bold text-slate-900 select-none"
-                style={{ 
-                  left: `${positions.signerPosition?.x || 60.0}%`, 
-                  top: `${positions.signerPosition?.y || 92.5}%`,
-                  fontSize: `${positions.signerPosition?.fontSize || 14}px`
-                }}
-              >
-                {receiptRecord?.signerPosition || secretaryOfficer?.title || 'เลขาธิการ'}
-              </div>
-            )}
-
-          </div>
+          <div 
+            className="w-full max-w-[640px] bg-white rounded-xl shadow-xl border border-slate-300 overflow-hidden print:border-none print:shadow-none print:max-w-none flex justify-center"
+            dangerouslySetInnerHTML={{ __html: receiptSvg }}
+          />
         </div>
 
         {/* Action Buttons Bar (ชัดเจน ใช้งานง่ายทั้งมือถือและคอมพิวเตอร์) */}
