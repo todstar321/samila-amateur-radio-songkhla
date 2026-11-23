@@ -25,7 +25,7 @@ import { DEFAULT_RECEIPT_TEMPLATE_BASE64 } from '../assets/defaultTemplates';
 import { getCurrentReceiptInfo } from '../utils/sequenceNumberUtils';
 import { fetchCentralLayoutSettings } from '../utils/layoutSyncUtils';
 import { generateReceiptSvg, getActiveTemplateBg } from '../utils/documentSvgGenerators';
-import { svgToPngBlob } from '../utils/telegramNotifyUtils';
+import { svgToPngBlob, ensureDataUrl } from '../utils/telegramNotifyUtils';
 
 // Default positions matching the real scanned physical receipt
 const DEFAULT_RECEIPT_POSITIONS = {
@@ -117,12 +117,15 @@ export default function MemberReceiptModal({
       if (!centralData) return;
       if (centralData.receipt) setPositions(prev => ({ ...prev, ...centralData.receipt }));
       if (centralData.receiptTierPositions) setTierPositions(prev => ({ ...prev, ...centralData.receiptTierPositions }));
-      if (centralData.templateBackgrounds?.receipt && 
-          centralData.templateBackgrounds.receipt !== '/receipt-template-sample.jpg' && 
-          !centralData.templateBackgrounds.receipt.startsWith('data:image/png;base64,iVBORw0KGgo')) {
-        setBgTemplate(centralData.templateBackgrounds.receipt);
-      } else {
-        setBgTemplate(DEFAULT_RECEIPT_TEMPLATE_BASE64);
+      if (centralData.templateBackgrounds?.receipt) {
+        const raw = centralData.templateBackgrounds.receipt;
+        if (raw.startsWith('data:image')) {
+          setBgTemplate(raw);
+        } else {
+          ensureDataUrl(raw).then(dUri => {
+            if (dUri && dUri.startsWith('data:image')) setBgTemplate(dUri);
+          }).catch(() => {});
+        }
       }
     }).catch(() => {});
 

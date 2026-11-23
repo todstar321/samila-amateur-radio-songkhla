@@ -19,6 +19,11 @@ import {
 } from './documentSvgGenerators.js';
 import { getCurrentReceiptInfo } from './sequenceNumberUtils.js';
 import { fetchCentralLayoutSettings } from './layoutSyncUtils.js';
+import { 
+  DEFAULT_APP_TEMPLATE_BASE64, 
+  DEFAULT_RECEIPT_TEMPLATE_BASE64, 
+  DEFAULT_CERT_TEMPLATE_BASE64 
+} from '../assets/defaultTemplates.js';
 
 export const TELEGRAM_STORAGE_KEY = 'samila_telegram_settings';
 
@@ -309,16 +314,41 @@ export async function sendTelegramDocument(docBlob, caption = '', options = {}) 
 
 /**
  * Send a single photo with optional caption (auto-routes to sendDocument if SVG or if sendPhoto fails)
+ * Supports:
+ * - Remote HTTP/HTTPS URLs (sent directly as JSON string, ultra-fast and zero-CORS)
+ * - Base64 Data URLs (converted to Blob)
+ * - Blob / File objects (sent via FormData)
  */
-export async function sendTelegramPhoto(photoBlob, caption = '', options = {}) {
-  if (!photoBlob) return { ok: false, description: 'No photo provided' };
-  
-  if (photoBlob.type && photoBlob.type.includes('svg')) {
-    return await sendTelegramDocument(photoBlob, caption, options);
+export async function sendTelegramPhoto(photoOrBlob, caption = '', options = {}) {
+  if (!photoOrBlob) return { ok: false, description: 'No photo provided' };
+
+  // 1. Direct Remote URL (e.g. Cloudinary HTTPS image) -> Send via JSON
+  if (typeof photoOrBlob === 'string' && (photoOrBlob.startsWith('http://') || photoOrBlob.startsWith('https://'))) {
+    const payload = {
+      photo: photoOrBlob,
+      caption: caption || '',
+      parse_mode: options.parse_mode || 'HTML'
+    };
+    const res = await sendTelegramRequest('sendPhoto', payload, false, options.botToken, options.chatId);
+    if (res.ok) return res;
+    console.warn('[Telegram] Direct URL sendPhoto failed, falling back to blob download:', res.description);
   }
 
+  // 2. Convert Data URL or Remote URL to Blob if string
+  let blob = photoOrBlob;
+  if (typeof photoOrBlob === 'string') {
+    blob = await dataUrlToBlob(photoOrBlob);
+    if (!blob) return { ok: false, description: 'Failed to convert photo to blob' };
+  }
+
+  // 3. SVG document fallback
+  if (blob.type && blob.type.includes('svg')) {
+    return await sendTelegramDocument(blob, caption, options);
+  }
+
+  // 4. Send as binary FormData
   const formData = new FormData();
-  formData.append('photo', photoBlob, options.filename || 'photo.png');
+  formData.append('photo', blob, options.filename || 'photo.png');
   if (caption) {
     formData.append('caption', caption);
     formData.append('parse_mode', options.parse_mode || 'HTML');
@@ -326,7 +356,7 @@ export async function sendTelegramPhoto(photoBlob, caption = '', options = {}) {
   const res = await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
   if (!res.ok) {
     console.warn('[Telegram] sendPhoto failed, falling back to sendDocument:', res.description);
-    return await sendTelegramDocument(photoBlob, caption, options);
+    return await sendTelegramDocument(blob, caption, options);
   }
   return res;
 }
@@ -498,12 +528,39 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   // Fetch central layout settings and backgrounds to ensure 100% real-time dynamic sync with Document Studio
   const centralSettings = await fetchCentralLayoutSettings().catch(() => null);
 
+  // Ensure backgrounds are Base64 Data URLs so offscreen SVG canvas renders them without browser cross-origin blockage
+  let receiptBg = DEFAULT_RECEIPT_TEMPLATE_BASE64;
+  if (centralSettings?.templateBackgrounds?.receipt) {
+    const rawBg = centralSettings.templateBackgrounds.receipt;
+    if (rawBg.startsWith('data:image')) {
+      receiptBg = rawBg;
+    } else {
+      const dataUri = await ensureDataUrl(rawBg).catch(() => null);
+      if (dataUri && dataUri.startsWith('data:image')) {
+        receiptBg = dataUri;
+      }
+    }
+  }
+
+  let appBg = DEFAULT_APP_TEMPLATE_BASE64;
+  if (centralSettings?.templateBackgrounds?.application) {
+    const rawBg = centralSettings.templateBackgrounds.application;
+    if (rawBg.startsWith('data:image')) {
+      appBg = rawBg;
+    } else {
+      const dataUri = await ensureDataUrl(rawBg).catch(() => null);
+      if (dataUri && dataUri.startsWith('data:image')) {
+        appBg = dataUri;
+      }
+    }
+  }
+
   // 2.1 Official Receipt (e-Receipt - ลำดับที่ 1 ตามที่สมาคมฯ กำหนด)
   try {
     const receiptSvg = generateReceiptSvg(m, receiptInfo, { 
       positions: centralSettings?.receipt,
       tierPositions: centralSettings?.receiptTierPositions,
-      templateBackground: centralSettings?.templateBackgrounds?.receipt,
+      templateBackground: receiptBg,
       registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
       registrarCallsign: 'E26ECG' 
     });
@@ -533,7 +590,7 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     const appSvg = generateApplicationFormSvg(appMember, { 
       positions: centralSettings?.application,
       tierPositions: centralSettings?.appTierPositions,
-      templateBackground: centralSettings?.templateBackgrounds?.application,
+      templateBackground: appBg,
       registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
       registrarCallsign: 'E26ECG',
       receiptNo: receiptInfo.receiptNo
@@ -554,67 +611,106 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   const evidenceList = [];
 
   // 3.1 Photo Avatar (1-2 inch)
-  let avatarBlob = await dataUrlToBlob(m.avatar);
-  if (avatarBlob) {
+  if (m.avatar) {
     evidenceList.push({
-      blob: avatarBlob,
+      photo: m.avatar,
       filename: `03_รูปถ่าย_${m.fullName}.jpg`,
       caption: `👤 <b>รูปถ่ายหน้าตรง 1-2 นิ้ว</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}`
     });
   }
 
-  // 3.2 Citizen ID Card Slip (ดึงข้อมูลจริง)
-  let idCardBlob = await dataUrlToBlob(m.idCardSlip);
-  if (!idCardBlob) {
-    const idCardSvg = generateCitizenIdCardSvg(m);
-    idCardBlob = await svgToPngBlob(idCardSvg, 1200, 750);
-  }
-  if (idCardBlob) {
+  // 3.2 Citizen ID Card Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
+  if (m.idCardSlip && typeof m.idCardSlip === 'string' && m.idCardSlip.startsWith('http')) {
     evidenceList.push({
-      blob: idCardBlob,
-      filename: `04_สำเนาบัตรประชาชน_${m.fullName}.png`,
+      photo: m.idCardSlip,
+      filename: `04_สำเนาบัตรประชาชน_${m.fullName}.jpg`,
       caption: `🪪 <b>สำเนาบัตรประจำตัวประชาชน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• เลขประจำตัวประชาชน: <code>${escapeHtml(m.citizenId || '-')}</code>`
     });
+  } else {
+    try {
+      let idCardBlob = await dataUrlToBlob(m.idCardSlip);
+      if (!idCardBlob) {
+        const idCardSvg = generateCitizenIdCardSvg(m);
+        idCardBlob = await svgToPngBlob(idCardSvg, 1200, 750);
+      }
+      if (idCardBlob) {
+        evidenceList.push({
+          photo: idCardBlob,
+          filename: `04_สำเนาบัตรประชาชน_${m.fullName}.png`,
+          caption: `🪪 <b>สำเนาบัตรประจำตัวประชาชน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• เลขประจำตัวประชาชน: <code>${escapeHtml(m.citizenId || '-')}</code>`
+        });
+      }
+    } catch (e) {
+      console.warn('ID Card render error:', e);
+    }
   }
 
-  // 3.3 House Registration Slip (ดึงข้อมูลจริง)
-  let houseBlob = await dataUrlToBlob(m.houseSlip);
-  if (!houseBlob) {
-    const houseSvg = generateHouseRegistrationSvg(m);
-    houseBlob = await svgToPngBlob(houseSvg, 1200, 975);
-  }
-  if (houseBlob) {
+  // 3.3 House Registration Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
+  if (m.houseSlip && typeof m.houseSlip === 'string' && m.houseSlip.startsWith('http')) {
     evidenceList.push({
-      blob: houseBlob,
-      filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
+      photo: m.houseSlip,
+      filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.jpg`,
       caption: `🏠 <b>สำเนาทะเบียนบ้าน (ท.ร.14)</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ที่อยู่: ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}`
     });
+  } else {
+    try {
+      let houseBlob = await dataUrlToBlob(m.houseSlip);
+      if (!houseBlob) {
+        const houseSvg = generateHouseRegistrationSvg(m);
+        houseBlob = await svgToPngBlob(houseSvg, 1200, 975);
+      }
+      if (houseBlob) {
+        evidenceList.push({
+          photo: houseBlob,
+          filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.png`,
+          caption: `🏠 <b>สำเนาทะเบียนบ้าน (ท.ร.14)</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ที่อยู่: ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}`
+        });
+      }
+    } catch (e) {
+      console.warn('House reg render error:', e);
+    }
   }
 
-  // 3.4 Bank Transfer Slip (ดึงข้อมูลจริง)
-  let transferBlob = await dataUrlToBlob(m.transferSlip);
-  if (!transferBlob) {
-    const slipSvg = generateBankSlipSvg(m);
-    transferBlob = await svgToPngBlob(slipSvg, 900, 1275);
-  }
-  if (transferBlob) {
+  // 3.4 Bank Transfer Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
+  if (m.transferSlip && typeof m.transferSlip === 'string' && m.transferSlip.startsWith('http')) {
     evidenceList.push({
-      blob: transferBlob,
-      filename: `06_สลิปโอนเงิน_${m.fullName}.png`,
+      photo: m.transferSlip,
+      filename: `06_สลิปโอนเงิน_${m.fullName}.jpg`,
       caption: `💸 <b>สลิปหลักฐานการโอนเงิน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ยอดเงินโอน: ${escapeHtml(feeText)}`
     });
+  } else {
+    try {
+      let transferBlob = await dataUrlToBlob(m.transferSlip);
+      if (!transferBlob) {
+        const slipSvg = generateBankSlipSvg(m);
+        transferBlob = await svgToPngBlob(slipSvg, 900, 1275);
+      }
+      if (transferBlob) {
+        evidenceList.push({
+          photo: transferBlob,
+          filename: `06_สลิปโอนเงิน_${m.fullName}.png`,
+          caption: `💸 <b>สลิปหลักฐานการโอนเงิน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ยอดเงินโอน: ${escapeHtml(feeText)}`
+        });
+      }
+    } catch (e) {
+      console.warn('Bank slip render error:', e);
+    }
   }
 
   // Send all documents as distinct individual photos with dedicated captions (ไม่จัดเป็นอัลบั้มรวมตามที่ผู้ใช้ต้องการ)
   const allPhotosToSend = [...officialDocsList, ...evidenceList];
   for (const item of allPhotosToSend) {
-    if (item && item.blob) {
-      await sendTelegramPhoto(item.blob, item.caption, {
-        botToken: settings.botToken,
-        chatId: settings.chatId,
-        filename: item.filename
-      });
-      await new Promise(r => setTimeout(r, 400));
+    if (item && (item.photo || item.blob)) {
+      try {
+        await sendTelegramPhoto(item.photo || item.blob, item.caption, {
+          botToken: settings.botToken,
+          chatId: settings.chatId,
+          filename: item.filename
+        });
+      } catch (err) {
+        console.warn('[Telegram] Photo send error:', err);
+      }
+      await new Promise(r => setTimeout(r, 450));
     }
   }
 
@@ -668,9 +764,21 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
   let finalCertBlob = certificateBlob;
   if (!finalCertBlob) {
     const centralSettings = await fetchCentralLayoutSettings().catch(() => null);
+    let certBg = DEFAULT_CERT_TEMPLATE_BASE64;
+    if (centralSettings?.templateBackgrounds?.certificate) {
+      const rawBg = centralSettings.templateBackgrounds.certificate;
+      if (rawBg.startsWith('data:image')) {
+        certBg = rawBg;
+      } else {
+        const dataUri = await ensureDataUrl(rawBg).catch(() => null);
+        if (dataUri && dataUri.startsWith('data:image')) {
+          certBg = dataUri;
+        }
+      }
+    }
     const certSvg = generateCertificateSvg(m, { 
       positions: centralSettings?.certificate,
-      templateBackground: centralSettings?.templateBackgrounds?.certificate,
+      templateBackground: certBg,
       registrarName: approver, 
       registrarCallsign: approverCallsign 
     });

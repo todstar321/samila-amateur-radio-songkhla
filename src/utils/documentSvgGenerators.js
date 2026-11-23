@@ -214,7 +214,10 @@ const APPLICANT_SIG_SVG = `<g transform="scale(0.65)"><path d="M10,25 C30,10 50,
 export function generateApplicationFormSvg(member, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('application');
-  const templateBg = settings.templateBackground || getActiveTemplateBg('application', DEFAULT_APP_TEMPLATE_BASE64);
+  let templateBg = settings.templateBackground || getActiveTemplateBg('application', DEFAULT_APP_TEMPLATE_BASE64);
+  if (!templateBg || !templateBg.startsWith('data:image')) {
+    templateBg = DEFAULT_APP_TEMPLATE_BASE64;
+  }
   const CANVAS_W = 794;
   const H = 1120;
 
@@ -675,7 +678,10 @@ export function generateBankSlipSvg(member) {
 export function generateCertificateSvg(member, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('certificate');
-  const templateBg = settings.templateBackground || getActiveTemplateBg('certificate', DEFAULT_CERT_TEMPLATE_BASE64);
+  let templateBg = settings.templateBackground || getActiveTemplateBg('certificate', DEFAULT_CERT_TEMPLATE_BASE64);
+  if (!templateBg || !templateBg.startsWith('data:image')) {
+    templateBg = DEFAULT_CERT_TEMPLATE_BASE64;
+  }
   const CANVAS_W = 794;
   const H = 1027;
 
@@ -743,10 +749,8 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('receipt');
   let templateBg = settings.templateBackground || getActiveTemplateBg('receipt', DEFAULT_RECEIPT_TEMPLATE_BASE64);
-  if (!templateBg || 
-      templateBg === '/receipt-template-sample.jpg' || 
-      templateBg.includes('v1795356945')) {
-    templateBg = getActiveTemplateBg('receipt', DEFAULT_RECEIPT_TEMPLATE_BASE64);
+  if (!templateBg || !templateBg.startsWith('data:image')) {
+    templateBg = DEFAULT_RECEIPT_TEMPLATE_BASE64;
   }
   const CANVAS_W = 794;
   const H = 1078;
