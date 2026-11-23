@@ -30,6 +30,63 @@ function getActiveLayout(docType) {
 }
 
 /**
+ * Load active template background cascading from localStorage to bundled JSON or fallback
+ */
+export function getActiveTemplateBg(docType, fallback) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.templateBackgrounds);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed[docType] && typeof parsed[docType] === 'string' && parsed[docType].trim()) {
+          const bg = parsed[docType].trim();
+          if (bg !== '/receipt-template-sample.jpg' && !bg.includes('v1795356945')) {
+            return bg;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  if (savedLayoutSettings?.templateBackgrounds?.[docType]) {
+    const bg = savedLayoutSettings.templateBackgrounds[docType];
+    if (bg && typeof bg === 'string' && bg.trim() && bg !== '/receipt-template-sample.jpg' && !bg.includes('v1795356945')) {
+      return bg.trim();
+    }
+  }
+  return fallback;
+}
+
+/**
+ * Helper to split long Thai address for Certificate into 2 lines cleanly at district
+ */
+export function splitThaiAddressForCertificate(addr) {
+  if (!addr) return ['', ''];
+  const clean = String(addr).trim();
+  const matches = [];
+  const regex = /(?:(?<!ผ)อ\.|อำเภอ|(?<=\s)อ(?=\s))/g;
+  let m;
+  while ((m = regex.exec(clean)) !== null) {
+    if (m.index > 5) matches.push(m.index);
+  }
+  if (matches.length > 0) {
+    let chosenIdx = matches[matches.length - 1];
+    for (const idx of matches) {
+      const before = clean.slice(0, idx);
+      if (before.includes('ต.') || before.includes('ตำบล')) {
+        chosenIdx = idx;
+        break;
+      }
+    }
+    return [clean.slice(0, chosenIdx).trim(), clean.slice(chosenIdx).trim()];
+  }
+  if (clean.length > 55) {
+    const spaceIdx = clean.lastIndexOf(' ', 55);
+    if (spaceIdx > 20) return [clean.slice(0, spaceIdx).trim(), clean.slice(spaceIdx).trim()];
+  }
+  return [clean, ''];
+}
+
+/**
  * Load active app tier positions from localStorage or bundled JSON
  */
 function getAppTierPositions() {
@@ -157,7 +214,7 @@ const APPLICANT_SIG_SVG = `<g transform="scale(0.65)"><path d="M10,25 C30,10 50,
 export function generateApplicationFormSvg(member, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('application');
-  const templateBg = settings.templateBackground || DEFAULT_APP_TEMPLATE_BASE64;
+  const templateBg = settings.templateBackground || getActiveTemplateBg('application', DEFAULT_APP_TEMPLATE_BASE64);
   const CANVAS_W = 794;
   const H = 1120;
 
@@ -618,7 +675,7 @@ export function generateBankSlipSvg(member) {
 export function generateCertificateSvg(member, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('certificate');
-  const templateBg = settings.templateBackground || DEFAULT_CERT_TEMPLATE_BASE64;
+  const templateBg = settings.templateBackground || getActiveTemplateBg('certificate', DEFAULT_CERT_TEMPLATE_BASE64);
   const CANVAS_W = 794;
   const H = 1027;
 
@@ -643,6 +700,17 @@ export function generateCertificateSvg(member, settings = {}) {
       elements.push(`<text x="${x + yOffset}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(dateParts.y)}</text>`);
     } else if (key === 'presidentSignature') {
       elements.push(`<g transform="translate(${x},${y})">${PRESIDENT_SIG_SVG}</g>`);
+    } else if (key === 'registeredAddress') {
+      const fullAddr = m.registeredAddress || m.currentAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
+      const [line1, line2] = splitThaiAddressForCertificate(fullAddr);
+      const effFs1 = line1.length > 70 ? Math.max(10.5, Math.floor(fs * 0.85)) : fs;
+      elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs1}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(line1)}</text>`);
+      if (line2) {
+        const l2X = item.line2X !== undefined ? (item.line2X / 100) * CANVAS_W : (24.0 / 100) * CANVAS_W;
+        const l2YOffset = item.line2YOffset !== undefined ? item.line2YOffset : 34;
+        const effFs2 = line2.length > 70 ? Math.max(10.5, Math.floor(fs * 0.85)) : fs;
+        elements.push(`<text x="${l2X}" y="${y + 11 + l2YOffset}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs2}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(line2)}</text>`);
+      }
     } else {
       let val = '';
       if (key === 'headerTitle') val = 'หนังสือรับรองสถานะการเป็นสมาชิก';
@@ -652,7 +720,6 @@ export function generateCertificateSvg(member, settings = {}) {
       else if (key === 'callsign') val = (m.callsign && m.callsign !== '-') ? m.callsign : '-';
       else if (key === 'citizenId') val = m.citizenId || '1969900105532';
       else if (key === 'birthDate') val = `${birthParts.d} ${birthParts.mFull} ${birthParts.y}`;
-      else if (key === 'registeredAddress') val = m.registeredAddress || m.currentAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
       else if (key === 'phone') val = m.phone || '093-792-5665';
       else if (key === 'memberId') val = String(m.memberId || '369113');
       else if (key === 'memberType') val = m.memberType || 'สมาชิกสามัญ 5 ปี';
@@ -675,12 +742,11 @@ export function generateCertificateSvg(member, settings = {}) {
 export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('receipt');
-  let templateBg = settings.templateBackground || DEFAULT_RECEIPT_TEMPLATE_BASE64;
+  let templateBg = settings.templateBackground || getActiveTemplateBg('receipt', DEFAULT_RECEIPT_TEMPLATE_BASE64);
   if (!templateBg || 
       templateBg === '/receipt-template-sample.jpg' || 
-      templateBg.includes('v1795356945') || 
-      templateBg.startsWith('data:image/png;base64,iVBORw0KGgo')) {
-    templateBg = DEFAULT_RECEIPT_TEMPLATE_BASE64;
+      templateBg.includes('v1795356945')) {
+    templateBg = getActiveTemplateBg('receipt', DEFAULT_RECEIPT_TEMPLATE_BASE64);
   }
   const CANVAS_W = 794;
   const H = 1078;

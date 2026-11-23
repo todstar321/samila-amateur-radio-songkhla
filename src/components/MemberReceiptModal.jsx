@@ -24,7 +24,7 @@ import { getSavedOfficers } from '../data/defaultSignatures';
 import { DEFAULT_RECEIPT_TEMPLATE_BASE64 } from '../assets/defaultTemplates';
 import { getCurrentReceiptInfo } from '../utils/sequenceNumberUtils';
 import { fetchCentralLayoutSettings } from '../utils/layoutSyncUtils';
-import { generateReceiptSvg } from '../utils/documentSvgGenerators';
+import { generateReceiptSvg, getActiveTemplateBg } from '../utils/documentSvgGenerators';
 import { svgToPngBlob } from '../utils/telegramNotifyUtils';
 
 // Default positions matching the real scanned physical receipt
@@ -97,18 +97,7 @@ export default function MemberReceiptModal({
 
   // Background template loaded from Document Studio (Embedded Base64 for instant zero-latency loading)
   const [bgTemplate, setBgTemplate] = useState(() => {
-    try {
-      const saved = localStorage.getItem('samila_doc_template_backgrounds_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.receipt && 
-            parsed.receipt !== '/receipt-template-sample.jpg' && 
-            !parsed.receipt.startsWith('data:image/png;base64,iVBORw0KGgo')) {
-          return parsed.receipt;
-        }
-      }
-    } catch (e) {}
-    return DEFAULT_RECEIPT_TEMPLATE_BASE64;
+    return getActiveTemplateBg('receipt', DEFAULT_RECEIPT_TEMPLATE_BASE64);
   });
 
   const activeMember = member || currentUser || {

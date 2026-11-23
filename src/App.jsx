@@ -30,6 +30,7 @@ import {
   initialDirectMessages
 } from './data/mockData';
 import { fetchCentralMembers, saveNewMemberToCentral, syncMembersToCentral } from './utils/memberSyncUtils';
+import { fetchCentralLayoutSettings } from './utils/layoutSyncUtils';
 import { CheckCircle, Sliders, Edit3, Clock, AlertTriangle } from 'lucide-react';
 
 export default function App() {
@@ -243,6 +244,7 @@ export default function App() {
     let isMounted = true;
 
     const syncCloud = () => {
+      fetchCentralLayoutSettings().catch(() => {});
       fetchCentralMembers().then(cloudMembers => {
         if (!isMounted || !Array.isArray(cloudMembers) || cloudMembers.length === 0) return;
         setMembersList(prev => {

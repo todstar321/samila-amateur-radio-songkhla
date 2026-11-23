@@ -1,11 +1,11 @@
 {
-  "version": 18,
+  "version": 23,
   "meta": {
     "savedBy": "ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)",
     "callsign": "E26ECG",
     "last4Id": "5532",
-    "savedAt": "2026-11-23T14:10:04.528Z",
-    "savedAtThai": "23 พ.ย. 2569 13:07"
+    "savedAt": "2026-11-23T14:43:06.299Z",
+    "savedAtThai": "23 พ.ย. 2569 14:43"
   },
   "receipt": {
     "bookNo": {
@@ -117,8 +117,8 @@
     "memberFeeTypeCheck": {
       "id": "memberFeeTypeCheck",
       "label": "ติ๊ก ประเภทสมาชิก (1-4) (✓)",
-      "x": 11.18,
-      "y": 62.4,
+      "x": 11.17,
+      "y": 55.66,
       "fontSize": 16,
       "color": "#0284c7",
       "bold": false
@@ -126,8 +126,8 @@
     "memberFeeAmount": {
       "id": "memberFeeAmount",
       "label": "ยอดเงินค่าบำรุงตามแถว (บาท)",
-      "x": 80.16,
-      "y": 62.3,
+      "x": 83,
+      "y": 56.6,
       "fontSize": 15,
       "color": "#0284c7",
       "bold": true,
@@ -308,10 +308,10 @@
     "callsignOld": {
       "id": "callsignOld",
       "label": "สัญญาณเรียกขานเดิม",
-      "x": 24,
-      "y": 24.2,
+      "x": 32.18,
+      "y": 23.08,
       "fontSize": 13,
-      "color": "#0f172a",
+      "color": "#004cff",
       "bold": false
     },
     "callsignNew": {
@@ -327,11 +327,13 @@
       "id": "citizenIdBoxes",
       "type": "citizenIdBoxes",
       "label": "หมายเลขบัตรประชาชน (13 หลัก แยกช่องตาราง)",
-      "x": 26.81,
-      "y": 25.8,
-      "pitch": 19.14,
+      "x": 27.24,
+      "y": 26,
+      "pitch": 19,
       "groupGap": 0,
-      "digitOffsets": {},
+      "digitOffsets": {
+        "11": -2
+      },
       "fontSize": 13.5,
       "color": "#0433ff",
       "bold": false
@@ -570,7 +572,7 @@
       "id": "postalCodeBoxes",
       "type": "simpleDigitBoxes",
       "label": "รหัสไปรษณีย์ (5 หลัก แยกช่องตาราง)",
-      "x": 51.87,
+      "x": 52.16,
       "y": 37.79,
       "pitch": 18.6,
       "digitOffsets": {},
@@ -638,7 +640,7 @@
       "id": "tierStandard5YCheck",
       "label": "ติ๊ก ประเภทสมาชิก (1-4) (✓)",
       "x": 8.57,
-      "y": 65.29,
+      "y": 59.29,
       "fontSize": 14,
       "color": "#0433ff",
       "bold": false
@@ -647,8 +649,8 @@
       "id": "tierMemberIdBoxes",
       "type": "simpleDigitBoxes",
       "label": "รหัสสมาชิกในช่อง (แยกช่องตาราง)",
-      "x": 66.3,
-      "y": 65.39,
+      "x": 66.29,
+      "y": 59.29,
       "pitch": 17,
       "digitOffsets": {
         "0": -2,
@@ -852,8 +854,8 @@
   "appTierPositions": {
     "honorary": {
       "check": {
-        "x": 8.43,
-        "y": 59.49
+        "x": 8.57,
+        "y": 59.29
       },
       "boxes": {
         "x": 66.29,
@@ -862,8 +864,8 @@
     },
     "lifetime": {
       "check": {
-        "x": 8.43,
-        "y": 62.29
+        "x": 8.72,
+        "y": 62.19
       },
       "boxes": {
         "x": 66.29,
@@ -876,18 +878,18 @@
         "y": 65.29
       },
       "boxes": {
-        "x": 66.3,
-        "y": 65.39
+        "x": 66.16,
+        "y": 65.29
       }
     },
     "radioOrg": {
       "check": {
-        "x": 8.44,
-        "y": 68.49
+        "x": 8.58,
+        "y": 68.29
       },
       "boxes": {
-        "x": 66.43,
-        "y": 68.39
+        "x": 66.14,
+        "y": 68.19
       }
     }
   },
@@ -1044,8 +1046,8 @@
     }
   },
   "templateBackgrounds": {
-    "application": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795356942/samila_hs9as_applications/samila_template_application.jpg",
-    "receipt": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795442992/samila_hs9as_applications/samila_template_receipt.jpg",
-    "certificate": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795356948/samila_hs9as_applications/samila_template_certificate.png"
+    "application": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795444776/samila_hs9as_applications/t4rhycwtnnd0n4xsytkq.png",
+    "receipt": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795444875/samila_hs9as_applications/b0trktq1kznqaqesue53.jpg",
+    "certificate": "https://res.cloudinary.com/dx2asgfo7/image/upload/v1795444914/samila_hs9as_applications/sdt1wq11omzpibk3srcy.png"
   }
 }

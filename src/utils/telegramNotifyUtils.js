@@ -18,6 +18,7 @@ import {
   generateReceiptSvg
 } from './documentSvgGenerators.js';
 import { getCurrentReceiptInfo } from './sequenceNumberUtils.js';
+import { fetchCentralLayoutSettings } from './layoutSyncUtils.js';
 
 export const TELEGRAM_STORAGE_KEY = 'samila_telegram_settings';
 
@@ -494,9 +495,18 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
   // 2. OFFICIAL APPLICATION DOCUMENTS (ใบเสร็จรับเงิน และ ใบสมัครสมาชิก)
   const officialDocsList = [];
 
+  // Fetch central layout settings and backgrounds to ensure 100% real-time dynamic sync with Document Studio
+  const centralSettings = await fetchCentralLayoutSettings().catch(() => null);
+
   // 2.1 Official Receipt (e-Receipt - ลำดับที่ 1 ตามที่สมาคมฯ กำหนด)
   try {
-    const receiptSvg = generateReceiptSvg(m, receiptInfo, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    const receiptSvg = generateReceiptSvg(m, receiptInfo, { 
+      positions: centralSettings?.receipt,
+      tierPositions: centralSettings?.receiptTierPositions,
+      templateBackground: centralSettings?.templateBackgrounds?.receipt,
+      registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
+      registrarCallsign: 'E26ECG' 
+    });
     const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 1629);
     if (receiptBlob) {
       officialDocsList.push({
@@ -521,6 +531,9 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
       }
     }
     const appSvg = generateApplicationFormSvg(appMember, { 
+      positions: centralSettings?.application,
+      tierPositions: centralSettings?.appTierPositions,
+      templateBackground: centralSettings?.templateBackgrounds?.application,
       registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
       registrarCallsign: 'E26ECG',
       receiptNo: receiptInfo.receiptNo
@@ -654,7 +667,13 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
   // 2. Render Official Certificate of Membership (หนังสือรับรองสมาชิกภาพทางการ ลงนามโดยนายกสมาคมฯ)
   let finalCertBlob = certificateBlob;
   if (!finalCertBlob) {
-    const certSvg = generateCertificateSvg(m, { registrarName: approver, registrarCallsign: approverCallsign });
+    const centralSettings = await fetchCentralLayoutSettings().catch(() => null);
+    const certSvg = generateCertificateSvg(m, { 
+      positions: centralSettings?.certificate,
+      templateBackground: centralSettings?.templateBackgrounds?.certificate,
+      registrarName: approver, 
+      registrarCallsign: approverCallsign 
+    });
     finalCertBlob = await svgToPngBlob(certSvg, 1200, 1552);
   }
   if (finalCertBlob) {
