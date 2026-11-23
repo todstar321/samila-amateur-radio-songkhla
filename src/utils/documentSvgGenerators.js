@@ -219,7 +219,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
     templateBg = DEFAULT_APP_TEMPLATE_BASE64;
   }
   const CANVAS_W = 794;
-  const H = 1120;
+  const H = 1125;
 
   const rawFullName = m.fullName || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)';
   const nameParts = rawFullName.trim().split(/\s+/);
@@ -232,7 +232,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
   const parsedAddr = parseAddressAndPostalCode(m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110', m.postalCode);
   const cleanAddr = parsedAddr.addressLine1 || parsedAddr.cleanAddress;
   const postalDigits = String(parsedAddr.postalDigits || m.postalCode || '90110').replace(/\D/g, '').padEnd(5, ' ').slice(0, 5).split('');
-  const memIdDigits = String(m.memberId || '369113').replace(/\D/g, '').padEnd(7, ' ').slice(0, 7).split('');
+  const memIdDigits = String(m.memberId || '30007').replace(/\D/g, '').padEnd(8, ' ').slice(0, 8).split('');
 
   const birthParts = parseThaiDateParts(m.birthDate || '16/09/2530');
   const issueParts = parseThaiDateParts(m.citizenIssueDate || '10/05/2569');
@@ -242,11 +242,11 @@ export function generateApplicationFormSvg(member, settings = {}) {
   const tierKey = getMemberTierKey(m);
   const appTiers = settings.tierPositions || getAppTierPositions();
   const activeAppTier = appTiers[tierKey] || {
-    honorary: { check: { x: 8.43, y: 59.49 }, boxes: { x: 66.29, y: 59.29 } },
-    lifetime: { check: { x: 8.43, y: 62.29 }, boxes: { x: 66.29, y: 62.29 } },
-    fiveYear: { check: { x: 8.57, y: 65.29 }, boxes: { x: 66.3, y: 65.39 } },
-    radioOrg: { check: { x: 8.44, y: 68.49 }, boxes: { x: 66.43, y: 68.39 } }
-  }[tierKey] || { check: { x: 8.57, y: 65.29 }, boxes: { x: 66.3, y: 65.39 } };
+    honorary: { check: { x: 9.5, y: 58.9 }, boxes: { x: 65.43, y: 58.9 } },
+    lifetime: { check: { x: 9.5, y: 61.9 }, boxes: { x: 65.43, y: 61.9 } },
+    fiveYear: { check: { x: 9.5, y: 64.9 }, boxes: { x: 65.43, y: 64.9 } },
+    radioOrg: { check: { x: 9.5, y: 67.9 }, boxes: { x: 65.43, y: 67.9 } }
+  }[tierKey] || { check: { x: 9.5, y: 64.9 }, boxes: { x: 65.43, y: 64.9 } };
 
   // Determine callsignOld and callsignNew
   let callsignOldVal = '';
@@ -297,7 +297,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
         elements.push(`<text x="${x + offset}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(lastName)}</text>`);
       }
     } else if (item.type === 'citizenIdBoxes') {
-      const pitch = item.pitch !== undefined ? item.pitch : 19.14;
+      const pitch = item.pitch !== undefined ? item.pitch : 19.0;
       const groupGap = item.groupGap !== undefined ? item.groupGap : 0;
       const digitOffsets = item.digitOffsets || {};
       idDigits.forEach((char, idx) => {
@@ -312,7 +312,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
       });
     } else if (item.type === 'simpleDigitBoxes') {
       const digits = key === 'postalCodeBoxes' ? postalDigits : memIdDigits;
-      const pitch = item.pitch !== undefined ? item.pitch : (key === 'tierMemberIdBoxes' ? 17 : 18.6);
+      const pitch = item.pitch !== undefined ? item.pitch : 19.0;
       const digitOffsets = item.digitOffsets || {};
       digits.forEach((char, idx) => {
         const nudge = digitOffsets[idx] || 0;
@@ -326,15 +326,15 @@ export function generateApplicationFormSvg(member, settings = {}) {
       else if (key === 'citizenExpiryDateGroup') { dVal = expiryParts.d || item.customDay || '09'; mVal = expiryParts.m || item.customMonth || '05'; yVal = expiryParts.y2 || item.customYear || '69'; }
       else { dVal = applyParts.d; mVal = applyParts.m; yVal = applyParts.y; }
 
-      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 36;
-      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 77;
+      const mOffset = item.monthOffsetPx !== undefined ? item.monthOffsetPx : (key === 'birthDateGroup' ? 65 : 48);
+      const yOffset = item.yearOffsetPx !== undefined ? item.yearOffsetPx : (key === 'birthDateGroup' ? 140 : 100);
       elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(dVal)}</text>`);
       elements.push(`<text x="${x + mOffset}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(mVal)}</text>`);
       elements.push(`<text x="${x + yOffset}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(yVal)}</text>`);
     } else if (key === 'photoBox') {
       const avatar = m.avatar;
-      const wBox = item.width || 95;
-      const hBox = item.height || 123;
+      const wBox = item.width || 80;
+      const hBox = item.height || 105;
       if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://'))) {
         elements.push(`<image href="${escapeXml(avatar)}" xlink:href="${escapeXml(avatar)}" x="${x}" y="${y}" width="${wBox}" height="${hBox}" preserveAspectRatio="xMidYMid slice" rx="3"/>`);
       } else {
@@ -356,14 +356,42 @@ export function generateApplicationFormSvg(member, settings = {}) {
       else if (key === 'genderMaleCheck') val = (m.gender !== 'หญิง') ? '✓' : '';
       else if (key === 'genderFemaleCheck') val = (m.gender === 'หญิง') ? '✓' : '';
       else if (key === 'maritalCheck') val = '✓';
-      else if (key === 'addressLine1') val = cleanAddr;
+      else if (key === 'addressLine1') {
+        let addr1 = cleanAddr;
+        let addr2 = parsedAddr.addressLine2 || '';
+        if (!addr2 && cleanAddr.length > 55) {
+          const splitMatch = cleanAddr.slice(35, 65).search(/[,\s]|(?=ต\.|อ\.|จ\.|ถ\.|ซ\.)/);
+          if (splitMatch !== -1) {
+            const splitIdx = 35 + splitMatch;
+            addr1 = cleanAddr.slice(0, splitIdx).trim();
+            addr2 = cleanAddr.slice(splitIdx).trim();
+          }
+        }
+        const effFs = addr1.length > 50 ? Math.max(10.5, Math.floor(fs * 0.88)) : fs;
+        elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(addr1)}</text>`);
+        if (addr2) {
+          const posL2 = pos.addressLine2 || { x: 10.0, y: 39.2 };
+          const l2X = (posL2.x / 100) * CANVAS_W;
+          const l2Y = (posL2.y / 100) * H;
+          elements.push(`<text x="${l2X}" y="${l2Y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(addr2)}</text>`);
+        }
+      } else if (key === 'addressLine2') {
+        if (!pos.addressLine1) {
+          val = parsedAddr.addressLine2 || '';
+        }
+      }
       else if (key === 'postalCode') val = m.postalCode || '90110';
       else if (key === 'phone') val = m.phone || '093-792-5665';
       else if (key === 'email') val = m.email || 'theepchalit@email.com';
       else if (key === 'lineId') val = m.lineId || 'E26ECG';
       else if (key === 'docIdCardCheck' || key === 'docPhotoCheck' || key === 'tierStandard5YCheck') val = '✓';
       else if (key === 'startDate') val = m.startDate || '16-11-2569';
-      else if (key === 'endDate') val = m.endDate || '15-11-2574';
+      else if (key === 'endDate') {
+        if (tierKey === 'lifetime') val = 'ตลอดชีพ';
+        else if (tierKey === 'honorary') val = 'กิตติมศักดิ์';
+        else if (tierKey === 'radioOrg') val = 'ตลอดการดำเนินงาน';
+        else val = m.endDate || '15-11-2574';
+      }
       else if (key === 'officerReceivedAmount') val = tierKey === 'lifetime' ? '2,500' : (tierKey === 'fiveYear' ? '500' : '0');
       else if (key === 'officerReceiptNo') val = m.receiptNo || settings.receiptNo || '0111';
 
@@ -763,11 +791,11 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const tierKey = getMemberTierKey(m);
   const receiptTiers = settings.tierPositions || getReceiptTierPositions();
   const activeReceiptTier = receiptTiers[tierKey] || {
-    honorary: { check: { x: 11.17, y: 55.66 }, amount: { x: 83, y: 56.6 } },
-    lifetime: { check: { x: 11.18, y: 58.94 }, amount: { x: 79.87, y: 58.52 } },
-    fiveYear: { check: { x: 11.18, y: 62.4 }, amount: { x: 80.16, y: 62.3 } },
-    radioOrg: { check: { x: 11.03, y: 65.88 }, amount: { x: 83, y: 68.6 } }
-  }[tierKey] || { check: { x: 11.18, y: 62.4 }, amount: { x: 80.16, y: 62.3 } };
+    honorary: { check: { x: 12.09, y: 56.0 }, amount: { x: 81.8, y: 56.0 } },
+    lifetime: { check: { x: 12.09, y: 59.4 }, amount: { x: 81.8, y: 59.4 } },
+    fiveYear: { check: { x: 12.09, y: 62.8 }, amount: { x: 81.8, y: 62.8 } },
+    radioOrg: { check: { x: 12.09, y: 66.3 }, amount: { x: 81.8, y: 66.3 } }
+  }[tierKey] || { check: { x: 12.09, y: 62.8 }, amount: { x: 81.8, y: 62.8 } };
 
   const isLifetime = tierKey === 'lifetime';
   const isOrg = tierKey === 'radioOrg' || tierKey === 'honorary';
@@ -794,7 +822,7 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
 
     if (key === 'receiptDateGroup' || item.type === 'dateGroup') {
       const mo = item.monthOffsetPx !== undefined ? item.monthOffsetPx : 116;
-      const yo = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 249;
+      const yo = item.yearOffsetPx !== undefined ? item.yearOffsetPx : 235;
       elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(dateParts.d)}</text>`);
       elements.push(`<text x="${x + mo}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(dateParts.mThai)}</text>`);
       elements.push(`<text x="${x + yo}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(dateParts.y)}</text>`);

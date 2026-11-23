@@ -161,39 +161,39 @@ export const APP_FORM_TIERS = {
 // ================= DEFAULT TIER POSITIONS (PER MEMBERSHIP CATEGORY) =================
 export const DEFAULT_RECEIPT_TIER_POSITIONS = defaultSavedLayout.receiptTierPositions || {
   honorary: {
-    check: { x: 11.03, y: 56.6 },
-    amount: { x: 83.0, y: 56.6 }
+    check: { x: 12.09, y: 56.0 },
+    amount: { x: 81.8, y: 56.0 }
   },
   lifetime: {
-    check: { x: 11.03, y: 59.78 },
-    amount: { x: 83.0, y: 59.78 }
+    check: { x: 12.09, y: 59.4 },
+    amount: { x: 81.8, y: 59.4 }
   },
   fiveYear: {
-    check: { x: 11.03, y: 64.6 },
-    amount: { x: 83.0, y: 64.6 }
+    check: { x: 12.09, y: 62.8 },
+    amount: { x: 81.8, y: 62.8 }
   },
   radioOrg: {
-    check: { x: 11.03, y: 68.6 },
-    amount: { x: 83.0, y: 68.6 }
+    check: { x: 12.09, y: 66.3 },
+    amount: { x: 81.8, y: 66.3 }
   }
 };
 
 export const DEFAULT_APP_TIER_POSITIONS = defaultSavedLayout.appTierPositions || {
   honorary: {
-    check: { x: 9.0, y: 60.5 },
-    boxes: { x: 66.86, y: 60.5 }
+    check: { x: 9.5, y: 58.9 },
+    boxes: { x: 65.43, y: 58.9 }
   },
   lifetime: {
-    check: { x: 9.0, y: 63.5 },
-    boxes: { x: 66.86, y: 63.5 }
+    check: { x: 9.5, y: 61.9 },
+    boxes: { x: 65.43, y: 61.9 }
   },
   fiveYear: {
-    check: { x: 9.0, y: 66.8 },
-    boxes: { x: 66.86, y: 66.8 }
+    check: { x: 9.5, y: 64.9 },
+    boxes: { x: 65.43, y: 64.9 }
   },
   radioOrg: {
-    check: { x: 9.0, y: 69.8 },
-    boxes: { x: 66.86, y: 69.8 }
+    check: { x: 9.5, y: 67.9 },
+    boxes: { x: 65.43, y: 67.9 }
   }
 };
 
@@ -266,16 +266,16 @@ const DEFAULT_APP_POSITIONS = defaultSavedLayout.application || {
     id: 'citizenIdBoxes', 
     type: 'citizenIdBoxes', 
     label: 'หมายเลขบัตรประชาชน (13 หลัก แยกช่องตาราง)', 
-    x: 27.6, 
-    y: 27.2, 
-    pitch: 19.5, 
-    groupGap: 7.5, 
-    digitOffsets: {}, 
+    x: 25.88, 
+    y: 26.0, 
+    pitch: 19.0, 
+    groupGap: 0, 
+    digitOffsets: { "0": -1 }, 
     fontSize: 13.5, 
-    color: '#0f172a', 
-    bold: true 
+    color: '#0433ff', 
+    bold: false 
   },
-  citizenId: { id: 'citizenId', label: 'หมายเลขบัตรประชาชน (13 หลัก รวม)', x: 27.6, y: 27.2, fontSize: 13.5, color: '#0f172a', bold: true, letterSpacing: 11.5, hidden: true },
+  citizenId: { id: 'citizenId', label: 'หมายเลขบัตรประชาชน (13 หลัก รวม)', x: 25.88, y: 26.0, fontSize: 13.5, color: '#0433ff', bold: false, letterSpacing: 11.5, hidden: true },
   
   // 3. Citizen Card Issue Date Group (Day / Month / Year on exact same baseline)
   citizenIssueDateGroup: { 
@@ -344,24 +344,24 @@ const DEFAULT_APP_POSITIONS = defaultSavedLayout.application || {
   maritalCheck: { id: 'maritalCheck', label: 'สถานภาพสมรส (✓)', x: 24.0, y: 33.2, fontSize: 14, color: '#0f172a', bold: true },
   
   // Address 2 Lines
-  addressLine1: { id: 'addressLine1', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 1 (ไม่มีรหัสไปรษณีย์)', x: 28.0, y: 36.2, fontSize: 12.5, color: '#0f172a', bold: false },
-  addressLine2: { id: 'addressLine2', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 2 (ถ้ามี)', x: 10.0, y: 39.2, fontSize: 12.5, color: '#0f172a', bold: false },
-  currentAddress: { id: 'currentAddress', label: 'ที่อยู่ปัจจุบันที่ติดต่อได้ (แบบรวม)', x: 28.0, y: 36.2, fontSize: 12.5, color: '#0f172a', bold: false, hidden: true },
+  addressLine1: { id: 'addressLine1', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 1 (ไม่มีรหัสไปรษณีย์)', x: 31.48, y: 34.8, fontSize: 12.5, color: '#0433ff', bold: false },
+  addressLine2: { id: 'addressLine2', label: 'ที่อยู่ปัจจุบัน บรรทัดที่ 2 (ถ้ามี)', x: 10.0, y: 39.2, fontSize: 12.5, color: '#0433ff', bold: false },
+  currentAddress: { id: 'currentAddress', label: 'ที่อยู่ปัจจุบันที่ติดต่อได้ (แบบรวม)', x: 31.48, y: 34.8, fontSize: 12.5, color: '#0433ff', bold: false, hidden: true },
   
   // 6. Postal Code Boxes
   postalCodeBoxes: { 
     id: 'postalCodeBoxes', 
     type: 'simpleDigitBoxes', 
     label: 'รหัสไปรษณีย์ (5 หลัก แยกช่องตาราง)', 
-    x: 53.0, 
-    y: 39.2, 
-    pitch: 17.5, 
+    x: 51.45, 
+    y: 37.3, 
+    pitch: 19.0, 
     digitOffsets: {}, 
     fontSize: 13, 
-    color: '#0f172a', 
-    bold: true 
+    color: '#0433ff', 
+    bold: false 
   },
-  postalCode: { id: 'postalCode', label: 'รหัสไปรษณีย์ (5 หลัก รวม)', x: 53.0, y: 39.2, fontSize: 13, color: '#0f172a', bold: true, letterSpacing: 8, hidden: true },
+  postalCode: { id: 'postalCode', label: 'รหัสไปรษณีย์ (5 หลัก รวม)', x: 51.45, y: 37.3, fontSize: 13, color: '#0433ff', bold: false, letterSpacing: 8, hidden: true },
   phone: { id: 'phone', label: 'เบอร์โทรศัพท์', x: 74.0, y: 39.2, fontSize: 13, color: '#0f172a', bold: true },
   email: { id: 'email', label: 'E-MAIL', x: 16.0, y: 42.2, fontSize: 12, color: '#0f172a', bold: false },
   lineId: { id: 'lineId', label: 'LINE ID', x: 58.0, y: 42.2, fontSize: 12, color: '#0f172a', bold: false },
@@ -371,18 +371,18 @@ const DEFAULT_APP_POSITIONS = defaultSavedLayout.application || {
   docPhotoCheck: { id: 'docPhotoCheck', label: 'แนบรูปถ่าย 1 นิ้ว (✓)', x: 9.0, y: 51.0, fontSize: 14, color: '#0f172a', bold: true },
   
   // Membership Type Check & Member ID in Boxes
-  tierStandard5YCheck: { id: 'tierStandard5YCheck', label: 'ติ๊ก ประเภทสมาชิก (1-4) (✓)', x: 9.0, y: 66.8, fontSize: 14, color: '#0f172a', bold: true },
+  tierStandard5YCheck: { id: 'tierStandard5YCheck', label: 'ติ๊ก ประเภทสมาชิก (1-4) (✓)', x: 9.5, y: 64.9, fontSize: 14, color: '#0433ff', bold: true },
   tierMemberIdBoxes: { 
     id: 'tierMemberIdBoxes', 
     type: 'simpleDigitBoxes', 
     label: 'รหัสสมาชิกในช่อง (แยกช่องตาราง)', 
-    x: 66.86, 
-    y: 69.8, 
-    pitch: 17.0, 
+    x: 65.43, 
+    y: 64.9, 
+    pitch: 19.0, 
     digitOffsets: {}, 
     fontSize: 13, 
-    color: '#0f172a', 
-    bold: true 
+    color: '#0433ff', 
+    bold: false 
   },
   startDate: { id: 'startDate', label: 'วันเริ่มต้นการเป็นสมาชิก', x: 26.0, y: 73.5, fontSize: 12.5, color: '#0f172a', bold: false },
   endDate: { id: 'endDate', label: 'วันสิ้นสุดการเป็นสมาชิก', x: 67.0, y: 73.5, fontSize: 12.5, color: '#0f172a', bold: false },
@@ -1875,8 +1875,8 @@ export default function DocumentStudio({
                   );
                 } else if (item.type === 'citizenIdBoxes') {
                   const idDigits = (activeMember.citizenId || '1909900123451').padEnd(13, ' ').slice(0, 13).split('');
-                  const pitch = item.pitch !== undefined ? item.pitch : 19.5;
-                  const groupGap = item.groupGap !== undefined ? item.groupGap : 7.5;
+                  const pitch = item.pitch !== undefined ? item.pitch : 19.0;
+                  const groupGap = item.groupGap !== undefined ? item.groupGap : 0;
                   const digitOffsets = item.digitOffsets || {};
                   const totalWidth = 13 * pitch + 4 * groupGap + 20;
 
@@ -1953,7 +1953,7 @@ export default function DocumentStudio({
                 } else if (item.type === 'simpleDigitBoxes') {
                   const rawStr = key === 'postalCodeBoxes' ? activePostalCode : effectiveMemberId;
                   const digits = rawStr.split('');
-                  const pitch = item.pitch !== undefined ? item.pitch : 17.5;
+                  const pitch = item.pitch !== undefined ? item.pitch : 19.0;
                   const digitOffsets = item.digitOffsets || {};
                   const totalWidth = digits.length * pitch + 20;
 
@@ -2105,10 +2105,9 @@ export default function DocumentStudio({
                       color: item.color,
                       fontWeight: item.bold ? 'bold' : 'normal',
                       letterSpacing: item.letterSpacing ? `${item.letterSpacing}px` : undefined,
-                      fontFamily: item.letterSpacing ? 'monospace' : undefined,
-                      transform: 'translate(-5%, -5%)'
+                      fontFamily: item.letterSpacing ? 'monospace' : undefined
                     }}
-                    className={`absolute cursor-move select-none p-0.5 rounded transition-shadow ${
+                    className={`absolute cursor-move select-none rounded transition-shadow ${
                       isSelected 
                         ? 'ring-2 ring-sky-500 bg-sky-100/70 z-30 shadow-md font-bold' 
                         : 'hover:ring-1 hover:ring-slate-400 z-10'
@@ -2210,7 +2209,7 @@ export default function DocumentStudio({
                       letterSpacing: item.letterSpacing ? `${item.letterSpacing}px` : undefined,
                       fontFamily: item.letterSpacing ? 'monospace' : undefined
                     }}
-                    className={`absolute cursor-move select-none p-0.5 rounded transition-shadow ${
+                    className={`absolute cursor-move select-none rounded transition-shadow ${
                       isSelected 
                         ? 'ring-2 ring-emerald-500 bg-emerald-100/70 z-30 shadow-md font-bold' 
                         : 'hover:ring-1 hover:ring-slate-400 z-10'
@@ -2310,7 +2309,7 @@ export default function DocumentStudio({
                       fontWeight: item.bold ? 'bold' : 'normal',
                       letterSpacing: item.letterSpacing ? `${item.letterSpacing}px` : undefined
                     }}
-                    className={`absolute cursor-move select-none p-0.5 rounded transition-shadow ${
+                    className={`absolute cursor-move select-none rounded transition-shadow ${
                       isSelected 
                         ? 'ring-2 ring-amber-500 bg-amber-100/70 z-30 shadow-md font-bold' 
                         : 'hover:ring-1 hover:ring-slate-400 z-10'
