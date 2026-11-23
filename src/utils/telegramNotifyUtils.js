@@ -118,6 +118,32 @@ export async function dataUrlToBlob(dataUri) {
 }
 
 /**
+ * Ensure image is a Base64 data URI (fetches remote URLs or blobs if needed)
+ */
+export async function ensureDataUrl(urlOrBlob) {
+  if (!urlOrBlob) return '';
+  if (typeof urlOrBlob === 'string' && urlOrBlob.startsWith('data:image')) return urlOrBlob;
+  const blob = await dataUrlToBlob(urlOrBlob);
+  if (!blob) return typeof urlOrBlob === 'string' ? urlOrBlob : '';
+
+  if (typeof FileReader !== 'undefined') {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result || '');
+      reader.readAsDataURL(blob);
+    });
+  } else {
+    try {
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      const mime = blob.type || 'image/jpeg';
+      return `data:${mime};base64,${buffer.toString('base64')}`;
+    } catch {
+      return typeof urlOrBlob === 'string' ? urlOrBlob : '';
+    }
+  }
+}
+
+/**
  * Rasterize SVG string to high-res PNG Blob using offscreen canvas
  */
 export function svgToPngBlob(svgString, width = 1200, height = 1695) {
@@ -485,7 +511,16 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
 
   // 2.2 Complete Application Form Document (แบบคำขอสมัครสมาชิก - ลำดับที่ 2)
   try {
-    const appSvg = generateApplicationFormSvg(m, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
+    let appMember = { ...m };
+    if (m.avatar) {
+      try {
+        const avatarDataUri = await ensureDataUrl(m.avatar);
+        if (avatarDataUri) appMember.avatar = avatarDataUri;
+      } catch (err) {
+        console.warn('Avatar dataUri convert error:', err);
+      }
+    }
+    const appSvg = generateApplicationFormSvg(appMember, { registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', registrarCallsign: 'E26ECG' });
     const appBlob = await svgToPngBlob(appSvg, 1200, 1693);
     if (appBlob) {
       officialDocsList.push({

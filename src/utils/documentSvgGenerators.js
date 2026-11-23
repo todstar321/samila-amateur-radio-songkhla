@@ -154,10 +154,12 @@ export function generateApplicationFormSvg(member, settings = {}) {
       elements.push(`<text x="${x + yOffset}" y="${y}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="hanging">${escapeXml(yVal)}</text>`);
     } else if (key === 'photoBox') {
       const avatar = m.avatar;
-      if (avatar && avatar.startsWith('data:')) {
-        elements.push(`<image href="${avatar}" x="${x}" y="${y}" width="80" height="105" preserveAspectRatio="xMidYMid slice" rx="4"/>`);
+      const wBox = item.width || 95;
+      const hBox = item.height || 123;
+      if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+        elements.push(`<image href="${escapeXml(avatar)}" x="${x}" y="${y}" width="${wBox}" height="${hBox}" preserveAspectRatio="xMidYMid slice" rx="3"/>`);
       } else {
-        elements.push(`<g transform="translate(${x},${y})"><rect width="80" height="105" fill="#f1f5f9" stroke="#94a3b8" rx="4"/><circle cx="40" cy="40" r="20" fill="#0284c7" opacity="0.8"/><path d="M 12 95 C 12 65, 68 65, 68 95 Z" fill="#0369a1" opacity="0.85"/></g>`);
+        elements.push(`<g transform="translate(${x},${y})"><rect width="${wBox}" height="${hBox}" fill="#f1f5f9" stroke="#94a3b8" rx="3"/><circle cx="${wBox / 2}" cy="42" r="22" fill="#0284c7" opacity="0.8"/><path d="M 12 ${hBox - 10} C 12 70, ${wBox - 12} 70, ${wBox - 12} ${hBox - 10} Z" fill="#0369a1" opacity="0.85"/></g>`);
       }
     } else if (key === 'applicantSignature') {
       elements.push(`<g transform="translate(${x},${y})">${APPLICANT_SIG_SVG}</g>`);
@@ -168,8 +170,22 @@ export function generateApplicationFormSvg(member, settings = {}) {
     } else {
       let val = '';
       if (key === 'fullName') val = rawFullName;
-      else if (key === 'callsignNew') val = m.callsign && m.callsign !== '-' ? m.callsign : 'E26ECG';
-      else if (key === 'callsignOld') val = m.callsignType === 'has' && m.callsignSubStatus === 'expired' ? m.callsign : '-';
+      else if (key === 'callsignOld') {
+        if (m.callsignType === 'has' && m.callsignSubStatus === 'expired') {
+          val = (m.formerCallsign && m.formerCallsign !== '-') ? m.formerCallsign : (m.callsign && m.callsign !== '-' ? m.callsign : '-');
+        } else {
+          val = '-';
+        }
+      }
+      else if (key === 'callsignNew') {
+        if (m.callsignType === 'has' && m.callsignSubStatus === 'expired') {
+          val = '-';
+        } else if (m.callsign && m.callsign !== '-') {
+          val = m.callsign;
+        } else {
+          val = '-';
+        }
+      }
       else if (key === 'citizenId') val = m.citizenId || '1969900105532';
       else if (key === 'age') val = String(m.age || '34');
       else if (key === 'genderMaleCheck') val = (m.gender !== 'หญิง') ? '✓' : '';

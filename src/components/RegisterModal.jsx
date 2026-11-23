@@ -30,6 +30,7 @@ import BuddhistDatePicker from './BuddhistDatePicker';
 import { consumeMemberId } from '../utils/sequenceNumberUtils';
 import { sendNewApplicationToTelegram } from '../utils/telegramNotifyUtils';
 import { uploadToCloudinary } from '../utils/cloudinaryUtils';
+import { saveNewMemberToCentral } from '../utils/memberSyncUtils';
 
 export default function RegisterModal({ 
   isOpen, 
@@ -397,6 +398,11 @@ export default function RegisterModal({
 
     setNewRegisteredUser(newMemberRecord);
     setIsSuccess(true);
+
+    // Save to central cloud storage immediately for real-time cross-device sync
+    saveNewMemberToCentral(newMemberRecord).catch((err) => {
+      console.warn('[MemberSync] Cloud save error:', err);
+    });
 
     // Automatically notify Telegram group with attached photos
     sendNewApplicationToTelegram(newMemberRecord).catch((err) => {

@@ -29,6 +29,7 @@ import {
   defaultDeQuestions,
   initialDirectMessages
 } from './data/mockData';
+import { fetchCentralMembers, saveNewMemberToCentral, syncMembersToCentral } from './utils/memberSyncUtils';
 import { CheckCircle, Sliders, Edit3, Clock, AlertTriangle } from 'lucide-react';
 
 export default function App() {
@@ -236,6 +237,33 @@ export default function App() {
       return mockNews;
     }
   });
+
+  // Central Cloud Members Sync across PC, Mobile, and Tablet (Single Source of Truth)
+  useEffect(() => {
+    let isMounted = true;
+    fetchCentralMembers().then(cloudMembers => {
+      if (!isMounted || !Array.isArray(cloudMembers) || cloudMembers.length === 0) return;
+      setMembersList(prev => {
+        const map = new Map();
+        cloudMembers.forEach(m => {
+          const key = m.id || m.citizenId;
+          map.set(key, m);
+        });
+        prev.forEach(m => {
+          const key = m.id || m.citizenId;
+          if (!map.has(key)) {
+            map.set(key, m);
+          }
+        });
+        const merged = Array.from(map.values());
+        try {
+          localStorage.setItem('samila_members_list', JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      });
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   // Track read news IDs per logged-in member (เพื่อกระตุ้นเฉพาะสมาชิก)
   const [readNewsIds, setReadNewsIds] = useState(() => {
@@ -473,6 +501,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
+    syncMembersToCentral(updated).catch(() => {});
   };
 
   // Update DE requests list
@@ -546,6 +575,7 @@ export default function App() {
   const handleRegisterSuccess = (newMember) => {
     const updated = [newMember, ...membersList];
     handleUpdateMembersList(updated);
+    saveNewMemberToCentral(newMember).catch(() => {});
     handleLoginSuccess(newMember);
   };
 

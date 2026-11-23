@@ -1997,8 +1997,16 @@ export default function DocumentStudio({
                 } else if (key === 'firstName') displayVal = activeFirstName;
                 else if (key === 'lastName') displayVal = activeLastName;
                 else if (key === 'fullName') displayVal = activeMember.fullName;
-                else if (key === 'callsignOld') displayVal = '-';
-                else if (key === 'callsignNew') displayVal = activeMember.callsign && activeMember.callsign !== '-' ? activeMember.callsign : 'E26ECG';
+                else if (key === 'callsignOld') {
+                  displayVal = (activeMember.callsignType === 'has' && activeMember.callsignSubStatus === 'expired')
+                    ? (activeMember.formerCallsign && activeMember.formerCallsign !== '-' ? activeMember.formerCallsign : (activeMember.callsign && activeMember.callsign !== '-' ? activeMember.callsign : '-'))
+                    : '-';
+                }
+                else if (key === 'callsignNew') {
+                  displayVal = (activeMember.callsignType === 'has' && activeMember.callsignSubStatus === 'expired')
+                    ? '-'
+                    : (activeMember.callsign && activeMember.callsign !== '-' ? activeMember.callsign : 'E26ECG');
+                }
                 else if (key === 'citizenId') displayVal = activeMember.citizenId || '1909900123451';
                 else if (key === 'citizenIssueDay') displayVal = '10';
                 else if (key === 'citizenIssueMonth') displayVal = '05';
