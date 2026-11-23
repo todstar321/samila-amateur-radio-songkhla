@@ -336,7 +336,7 @@ export function generateApplicationFormSvg(member, settings = {}) {
       const wBox = item.width || 95;
       const hBox = item.height || 123;
       if (avatar && (avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://'))) {
-        elements.push(`<image href="${escapeXml(avatar)}" x="${x}" y="${y}" width="${wBox}" height="${hBox}" preserveAspectRatio="xMidYMid slice" rx="3"/>`);
+        elements.push(`<image href="${escapeXml(avatar)}" xlink:href="${escapeXml(avatar)}" x="${x}" y="${y}" width="${wBox}" height="${hBox}" preserveAspectRatio="xMidYMid slice" rx="3"/>`);
       } else {
         elements.push(`<g transform="translate(${x},${y})"><rect width="${wBox}" height="${hBox}" fill="#f1f5f9" stroke="#94a3b8" rx="3"/><circle cx="${wBox / 2}" cy="42" r="22" fill="#0284c7" opacity="0.8"/><path d="M 12 ${hBox - 10} C 12 70, ${wBox - 12} 70, ${wBox - 12} ${hBox - 10} Z" fill="#0369a1" opacity="0.85"/></g>`);
       }
@@ -373,8 +373,8 @@ export function generateApplicationFormSvg(member, settings = {}) {
     }
   });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
+  <image href="${templateBg}" xlink:href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }
@@ -738,8 +738,8 @@ export function generateCertificateSvg(member, settings = {}) {
     }
   });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
+  <image href="${templateBg}" xlink:href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }
@@ -821,8 +821,8 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
     }
   });
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
-  <image href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${CANVAS_W} ${H}" width="${CANVAS_W}" height="${H}" style="max-width: 100%; height: auto; display: block;">
+  <image href="${templateBg}" xlink:href="${templateBg}" width="${CANVAS_W}" height="${H}" x="0" y="0"/>
   ${elements.join('\n  ')}
 </svg>`;
 }

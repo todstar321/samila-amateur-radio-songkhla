@@ -150,47 +150,97 @@ export async function ensureDataUrl(urlOrBlob) {
 }
 
 /**
- * Rasterize SVG string to high-res PNG Blob using offscreen canvas
+ * Rasterize SVG string to high-res JPEG/PNG Blob using offscreen canvas
  */
-export function svgToPngBlob(svgString, width = 1200, height = 1695) {
+export function svgToPngBlob(svgString, width = 1200, height = 1695, format = 'image/jpeg') {
   return new Promise((resolve) => {
     try {
       if (typeof window === 'undefined' || !window.document) {
-        return resolve(new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' }));
+        return resolve(new Blob([svgString], { type: format }));
       }
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-      const URL = window.URL || window.webkitURL || window;
-      const blobURL = URL.createObjectURL(svgBlob);
-      const img = new Image();
 
-      img.onload = () => {
+      let cleanSvg = svgString;
+      if (!cleanSvg.includes('xmlns:xlink')) {
+        cleanSvg = cleanSvg.replace('<svg ', '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
+      }
+      cleanSvg = cleanSvg.replace(/<image\s+href="([^"]+)"(?!\s+xlink:href)/g, '<image href="$1" xlink:href="$1"');
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      const renderCanvas = () => {
         try {
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(blobURL);
           canvas.toBlob((blob) => {
-            resolve(blob || svgBlob);
-          }, 'image/png', 0.95);
-        } catch (e) {
-          URL.revokeObjectURL(blobURL);
-          resolve(svgBlob);
+            if (blob && !blob.type.includes('svg')) {
+              resolve(blob);
+            } else {
+              try {
+                const dataUrl = canvas.toDataURL(format, 0.92);
+                const bstr = atob(dataUrl.split(',')[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) u8arr[n] = bstr.charCodeAt(n);
+                resolve(new Blob([u8arr], { type: format }));
+              } catch (e2) {
+                resolve(new Blob([cleanSvg], { type: format }));
+              }
+            }
+          }, format, 0.92);
+        } catch (err) {
+          console.warn('[svgToPngBlob] drawImage error:', err);
+          resolve(new Blob([cleanSvg], { type: format }));
         }
       };
 
-      img.onerror = () => {
-        URL.revokeObjectURL(blobURL);
-        resolve(svgBlob);
+      img.onload = renderCanvas;
+
+      // Data URL format with encodeURIComponent is 100% supported in Safari & Chrome for SVGs
+      let dataUrl;
+      try {
+        dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cleanSvg);
+      } catch (e) {
+        dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(cleanSvg)));
+      }
+
+      img.onerror = (e) => {
+        console.warn('[svgToPngBlob] Data URL error, trying Blob URL fallback:', e);
+        try {
+          const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
+          const URL = window.URL || window.webkitURL || window;
+          const blobURL = URL.createObjectURL(svgBlob);
+          const fbImg = new Image();
+          fbImg.crossOrigin = 'anonymous';
+          fbImg.onload = () => {
+            URL.revokeObjectURL(blobURL);
+            try {
+              ctx.drawImage(fbImg, 0, 0, width, height);
+              canvas.toBlob((b) => resolve(b || new Blob([cleanSvg], { type: format })), format, 0.92);
+            } catch {
+              resolve(new Blob([cleanSvg], { type: format }));
+            }
+          };
+          fbImg.onerror = () => {
+            URL.revokeObjectURL(blobURL);
+            resolve(new Blob([cleanSvg], { type: format }));
+          };
+          fbImg.src = blobURL;
+        } catch {
+          resolve(new Blob([cleanSvg], { type: format }));
+        }
       };
 
-      img.src = blobURL;
+      img.src = dataUrl;
     } catch (err) {
-      console.error('svgToPngBlob raster error:', err);
-      resolve(new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' }));
+      console.error('[svgToPngBlob] setup error:', err);
+      resolve(new Blob([svgString], { type: format }));
     }
   });
 }
@@ -341,23 +391,18 @@ export async function sendTelegramPhoto(photoOrBlob, caption = '', options = {})
     if (!blob) return { ok: false, description: 'Failed to convert photo to blob' };
   }
 
-  // 3. SVG document fallback
-  if (blob.type && blob.type.includes('svg')) {
-    return await sendTelegramDocument(blob, caption, options);
-  }
+  // 3. Ensure filename ends in .jpg for native Telegram inline photo feed
+  const rawFilename = options.filename || 'photo.jpg';
+  const cleanFilename = rawFilename.replace(/\.png$/i, '.jpg').replace(/\.svg$/i, '.jpg');
 
-  // 4. Send as binary FormData
+  // 4. Send as binary FormData directly to Telegram sendPhoto (NEVER sendDocument for photos!)
   const formData = new FormData();
-  formData.append('photo', blob, options.filename || 'photo.png');
+  formData.append('photo', blob, cleanFilename);
   if (caption) {
     formData.append('caption', caption);
     formData.append('parse_mode', options.parse_mode || 'HTML');
   }
   const res = await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
-  if (!res.ok) {
-    console.warn('[Telegram] sendPhoto failed, falling back to sendDocument:', res.description);
-    return await sendTelegramDocument(blob, caption, options);
-  }
   return res;
 }
 
@@ -564,11 +609,11 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
       registrarName: 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด)', 
       registrarCallsign: 'E26ECG' 
     });
-    const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 1629);
+    const receiptBlob = await svgToPngBlob(receiptSvg, 1200, 1629, 'image/jpeg');
     if (receiptBlob) {
       officialDocsList.push({
         blob: receiptBlob,
-        filename: `01_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.png`,
+        filename: `01_ใบเสร็จรับเงิน_${m.fullName}_เล่ม${receiptInfo.bookNo}_เลขที่${receiptInfo.receiptNo}.jpg`,
         caption: `🧾 <b>ใบเสร็จรับเงิน (e-Receipt)</b>\n • เล่มที่ ${receiptInfo.bookNo} เลขที่ ${receiptInfo.receiptNo}\n • ${escapeHtml(m.fullName)}\n • ค่าบำรุงสมาชิก: ${escapeHtml(feeText)}`
       });
     }
@@ -595,11 +640,11 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
       registrarCallsign: 'E26ECG',
       receiptNo: receiptInfo.receiptNo
     });
-    const appBlob = await svgToPngBlob(appSvg, 1200, 1693);
+    const appBlob = await svgToPngBlob(appSvg, 1200, 1693, 'image/jpeg');
     if (appBlob) {
       officialDocsList.push({
         blob: appBlob,
-        filename: `02_ใบสมัครสมาชิก_${m.fullName}.png`,
+        filename: `02_ใบสมัครสมาชิก_${m.fullName}.jpg`,
         caption: `📄 <b>ใบสมัครสมาชิกสมาคม (แบบคำขอทางการ)</b>\n• ผู้สมัคร: ${escapeHtml(m.fullName)}\n• นามเรียกขาน: ${escapeHtml(m.callsign && m.callsign !== '-' ? m.callsign : 'ขอรับใหม่')}`
       });
     }
@@ -782,7 +827,7 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
       registrarName: approver, 
       registrarCallsign: approverCallsign 
     });
-    finalCertBlob = await svgToPngBlob(certSvg, 1200, 1552);
+    finalCertBlob = await svgToPngBlob(certSvg, 1200, 1552, 'image/jpeg');
   }
   if (finalCertBlob) {
     await sendTelegramPhoto(
@@ -791,7 +836,7 @@ export async function sendApprovalDocumentsToTelegram({ member, auditData = {}, 
       {
         botToken: settings.botToken,
         chatId: settings.chatId,
-        filename: `หนังสือรับรองสมาชิก_${m.fullName}.png`
+        filename: `01_หนังสือรับรองสมาชิก_${m.fullName}.jpg`
       }
     );
   }
