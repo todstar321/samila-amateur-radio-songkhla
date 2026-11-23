@@ -323,6 +323,12 @@ export default function RegisterModal({
       return;
     }
 
+    if (totalAmount > 0 && !slipPreview) {
+      setErrorMessage('กรุณาแนบภาพสลิปหลักฐานการโอนเงิน (จำเป็นต้องอัปโหลดเพื่อยืนยันการสมัคร)');
+      setCurrentStep(5);
+      return;
+    }
+
     const cleanLast4 = cleanCitizen.slice(-4);
     const chosenCallsign = callsignType === 'has' && callsign.trim() ? callsign.trim().toUpperCase() : '-';
     const effectivePrefix = prefix === 'อื่นๆ' ? customPrefix.trim() : prefix;
@@ -1154,67 +1160,122 @@ export default function RegisterModal({
 
                     {/* Bank Transfer Box */}
                     {totalAmount > 0 && (
-                      <div className="p-4 bg-gradient-to-br from-[#06182c] to-[#0a2544] text-white rounded-2xl shadow-md space-y-3">
-                        <div className="flex items-center justify-between border-b border-sky-900 pb-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center font-bold text-sky-300 text-xs">
-                              KTB
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-white">บัญชีสมาคมวิทยุสมัครเล่นสมิหลา</p>
-                              <p className="text-[10px] text-sky-300">ธนาคารกรุงไทย (Krungthai Bank)</p>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <span className="text-[10px] text-slate-400">ยอดชำระรวม:</span>
-                            <p className="text-base font-mono font-bold text-amber-400">
-                              {totalAmount.toLocaleString()} บาท
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                          <div className="sm:col-span-8 space-y-0.5">
-                            <p className="text-[11px] text-slate-300">
-                              ชื่อบัญชี: <strong className="text-white">สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา</strong>
-                            </p>
+                      <div className="space-y-3">
+                        <div className="p-4 bg-gradient-to-br from-[#06182c] to-[#0a2544] text-white rounded-2xl shadow-md space-y-3">
+                          <div className="flex items-center justify-between border-b border-sky-900 pb-2.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-slate-300">เลขที่บัญชี:</span>
-                              <span className="text-base font-mono font-bold tracking-widest text-sky-200">
-                                9013394310
-                              </span>
+                              <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center font-bold text-sky-300 text-xs">
+                                KTB
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-white">บัญชีสมาคมวิทยุสมัครเล่นสมิหลา</p>
+                                <p className="text-[10px] text-sky-300">ธนาคารกรุงไทย (Krungthai Bank)</p>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <span className="text-[10px] text-slate-400">ยอดชำระรวม:</span>
+                              <p className="text-base font-mono font-bold text-amber-400">
+                                {totalAmount.toLocaleString()} บาท
+                              </p>
                             </div>
                           </div>
 
-                          <div className="sm:col-span-4 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={handleCopyBankAccount}
-                              className="w-full sm:w-auto px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
-                            >
-                              {copiedBank ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                              <span>{copiedBank ? 'คัดลอกเลขบัญชีแล้ว!' : 'คัดลอกเลขบัญชี'}</span>
-                            </button>
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                            <div className="sm:col-span-8 space-y-0.5">
+                              <p className="text-[11px] text-slate-300">
+                                ชื่อบัญชี: <strong className="text-white">สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา</strong>
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-slate-300">เลขที่บัญชี:</span>
+                                <span className="text-base font-mono font-bold tracking-widest text-sky-200">
+                                  9013394310
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="sm:col-span-4 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={handleCopyBankAccount}
+                                className="w-full sm:w-auto px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow"
+                              >
+                                {copiedBank ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                                <span>{copiedBank ? 'คัดลอกเลขบัญชีแล้ว!' : 'คัดลอกเลขบัญชี'}</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Upload Transfer Slip */}
-                        <div className="pt-2 border-t border-sky-900/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <Upload className="w-4 h-4 text-sky-400" />
-                            <span className="text-xs text-slate-300 font-medium">แนบสลิปหลักฐานการโอนเงิน</span>
+                        {/* Separate Prominent Upload Transfer Slip Box (แยกออกมาใต้กรอบบัญชีและบังคับอัปโหลด) */}
+                        <div className={`p-4 rounded-2xl border-2 transition shadow-xs ${
+                          slipPreview 
+                            ? 'bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-200' 
+                            : 'bg-amber-50/80 border-amber-400 border-dashed ring-2 ring-amber-200/60'
+                        }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shadow-xs ${
+                                slipPreview ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                              }`}>
+                                <Upload className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h5 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>แนบสลิปหลักฐานการโอนเงิน</span>
+                                  <span className="text-rose-600 font-extrabold">* (จำเป็นต้องอัปโหลด)</span>
+                                </h5>
+                                <p className="text-[10.5px] text-slate-600">
+                                  กรุณาโอนเงินเข้าบัญชีสมาคมฯ ด้านบน แล้วถ่ายภาพหรือแนบสลิปเพื่อยืนยันการสมัคร
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              slipPreview 
+                                ? 'bg-emerald-200 text-emerald-900' 
+                                : 'bg-rose-100 text-rose-700 animate-pulse'
+                            }`}>
+                              {slipPreview ? 'แนบสลิปแล้ว' : 'ยังไม่ได้แนบสลิป'}
+                            </span>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            {slipPreview && (
-                              <img src={slipPreview} alt="Slip" className="w-10 h-10 object-cover rounded border border-slate-700" />
-                            )}
-                            <label className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-lg text-xs cursor-pointer shadow-xs">
-                              <span>{slipPreview ? 'เปลี่ยนสลิป' : 'อัปโหลดสลิป'}</span>
+                          {slipPreview ? (
+                            <div className="mt-3 p-3 bg-white rounded-xl border border-emerald-300 flex items-center justify-between gap-3 shadow-2xs">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img 
+                                  src={slipPreview} 
+                                  alt="Transfer Slip Preview" 
+                                  className="w-14 h-16 sm:w-16 sm:h-20 object-cover rounded-lg border border-slate-300 shadow-xs shrink-0" 
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                    <span>อัปโหลดภาพสลิปเรียบร้อยแล้ว</span>
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                    พร้อมจัดส่งภาพเข้าสู่ระบบ Telegram สมาคมฯ
+                                  </p>
+                                </div>
+                              </div>
+                              <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 rounded-xl text-xs font-semibold cursor-pointer transition shadow-2xs shrink-0">
+                                <span>เปลี่ยนภาพสลิป</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview)} />
+                              </label>
+                            </div>
+                          ) : (
+                            <label className="mt-2 w-full flex flex-col items-center justify-center p-4 sm:p-5 border-2 border-dashed border-amber-400 bg-white hover:bg-amber-100/50 rounded-xl cursor-pointer transition group shadow-2xs">
+                              <div className="w-11 h-11 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                <Upload className="w-5 h-5 text-amber-700" />
+                              </div>
+                              <p className="text-xs font-bold text-slate-900 group-hover:text-amber-800 transition">
+                                คลิกที่นี่เพื่อเลือกไฟล์ภาพสลิปการโอนเงิน (บังคับแนบรูป) *
+                              </p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">
+                                รองรับไฟล์รูปภาพ JPG, PNG, ถ่ายรูปจากมือถือ หรือภาพถ่ายใบเสร็จ
+                              </p>
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview)} />
                             </label>
-                          </div>
+                          )}
                         </div>
                       </div>
                     )}

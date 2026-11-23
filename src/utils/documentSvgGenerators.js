@@ -675,7 +675,13 @@ export function generateCertificateSvg(member, settings = {}) {
 export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
   const m = member || {};
   const pos = settings.positions || getActiveLayout('receipt');
-  const templateBg = settings.templateBackground || DEFAULT_RECEIPT_TEMPLATE_BASE64;
+  let templateBg = settings.templateBackground || DEFAULT_RECEIPT_TEMPLATE_BASE64;
+  if (!templateBg || 
+      templateBg === '/receipt-template-sample.jpg' || 
+      templateBg.includes('v1795356945') || 
+      templateBg.startsWith('data:image/png;base64,iVBORw0KGgo')) {
+    templateBg = DEFAULT_RECEIPT_TEMPLATE_BASE64;
+  }
   const CANVAS_W = 794;
   const H = 1078;
 
