@@ -18,7 +18,8 @@ import {
   ChevronRight,
   LogOut,
   Cpu,
-  Edit3
+  Edit3,
+  Camera
 } from 'lucide-react';
 import { demoAccounts } from '../data/mockData';
 import { getSectionTheme, getOverlayGradient } from '../utils/themeUtils';
@@ -36,7 +37,8 @@ export default function HeroSection({
   onOpenReceipt,
   onOpenDeModal,
   onOpenManageFrequencies,
-  onOpenCustomizer
+  onOpenCustomizer,
+  onOpenEditProfile
 }) {
   // Login Form States inside Hero
   const [callsignInput, setCallsignInput] = useState('');
@@ -355,13 +357,21 @@ export default function HeroSection({
                   {/* Top Profile Block: [รูปสมาชิก] | ข้อมูล */}
                   <div className="flex items-start gap-3.5">
                     
-                    {/* รูปสมาชิก */}
-                    <div className="relative shrink-0">
+                    {/* รูปสมาชิก พร้อมปุ่มกดเปลี่ยนรูป */}
+                    <div 
+                      className="relative shrink-0 group cursor-pointer"
+                      onClick={onOpenEditProfile}
+                      title="คลิกเพื่อแก้ไขข้อมูลส่วนตัว / เปลี่ยนรูปโปรไฟล์"
+                    >
                       <img 
                         src={currentUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"} 
                         alt="รูปสมาชิก" 
-                        className="w-16 h-20 object-cover rounded-xl border-2 border-sky-400/50 shadow-md bg-slate-800"
+                        className="w-16 h-20 object-cover rounded-xl border-2 border-sky-400/50 shadow-md bg-slate-800 transition-transform group-hover:scale-105"
                       />
+                      <div className="absolute inset-0 rounded-xl bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold gap-0.5">
+                        <Camera className="w-4 h-4 text-cyan-300" />
+                        <span>เปลี่ยนรูป</span>
+                      </div>
                       <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900" title="สถานะออนไลน์" />
                     </div>
 
@@ -396,6 +406,20 @@ export default function HeroSection({
                           <span className="text-[11px] text-sky-400 group-hover:text-sky-300 underline decoration-dotted ml-0.5 cursor-pointer">(ดูข้อมูล)</span>
                         </span>
                       </div>
+
+                      {/* ปุ่มแก้ไขข้อมูลส่วนตัว / เปลี่ยนรูปโปรไฟล์ */}
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={onOpenEditProfile}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-sky-500/25 to-blue-600/25 hover:from-sky-500/40 hover:to-blue-600/40 text-cyan-200 hover:text-white font-semibold text-[11px] rounded-lg border border-cyan-400/40 transition cursor-pointer shadow-xs"
+                          title="แก้ไขข้อมูลส่วนบุคคล เบอร์โทร ชื่อ-นามสกุล ที่อยู่ และเปลี่ยนรูปภาพ"
+                        >
+                          <Edit3 className="w-3 h-3 text-cyan-300" />
+                          <span>✏️ แก้ไขข้อมูลสมาชิก / เปลี่ยนรูป</span>
+                        </button>
+                      </div>
+
                     </div>
 
                   </div>
@@ -591,6 +615,18 @@ export default function HeroSection({
                       >
                         <FileText className="w-3.5 h-3.5" />
                         <span>หนังสือรับรองสมาชิก</span>
+                      </button>
+                    </div>
+
+                    {/* ปุ่มแก้ไขข้อมูลส่วนตัว & ภาพโปรไฟล์ */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={onOpenEditProfile}
+                        className="w-full py-2.5 px-3 bg-gradient-to-r from-slate-900/90 to-sky-950/90 hover:from-slate-800 hover:to-sky-900 text-sky-200 hover:text-white border border-sky-500/40 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-sky-400" />
+                        <span>แก้ไขข้อมูลสมาชิก & ภาพถ่ายโปรไฟล์ (≤ 25 KB)</span>
                       </button>
                     </div>
 

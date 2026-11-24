@@ -21,6 +21,7 @@ import DirectChatModal from './components/DirectChatModal';
 import MessageInboxModal from './components/MessageInboxModal';
 import MemberProfileModal from './components/MemberProfileModal';
 import LogoPreviewModal from './components/LogoPreviewModal';
+import EditProfileModal from './components/EditProfileModal';
 import { 
   defaultSettings, 
   defaultSectionThemes,
@@ -474,6 +475,32 @@ export default function App() {
     setIsProfileModalOpen(true);
   };
 
+  // Edit Profile Modal & Real-time Cloud Sync
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+
+  const handleSaveProfile = async (updatedMember) => {
+    setCurrentUser(updatedMember);
+    try {
+      localStorage.setItem('samila_current_user', JSON.stringify(updatedMember));
+    } catch (e) {}
+
+    setMembersList(prev => {
+      const updated = prev.map(m => {
+        if ((m.id && m.id === updatedMember.id) || (m.citizenId && m.citizenId === updatedMember.citizenId)) {
+          return { ...m, ...updatedMember };
+        }
+        return m;
+      });
+      try {
+        localStorage.setItem('samila_members_list', JSON.stringify(updated));
+      } catch (e) {}
+      syncMembersToCentral(updated).catch(err => console.warn('[App] Sync profile error:', err));
+      return updated;
+    });
+
+    showToast("บันทึกการแก้ไขข้อมูลส่วนตัวและรูปภาพเรียบร้อยแล้ว");
+  };
+
   // Persistence of active tab & view
   useEffect(() => {
     try {
@@ -790,6 +817,7 @@ export default function App() {
         unreadNewsCount={unreadNewsCount}
         activeTab={activeLandingTab}
         onSelectTab={setActiveLandingTab}
+        onOpenEditProfile={() => setIsEditProfileOpen(true)}
       />
 
       {/* 2. Main Page Content (แสดงทีละหน้าตามแถบนำทาง ไม่ซ้อนทุกหน้าให้อึดอัด เพื่อความสวยงาม) */}
@@ -810,6 +838,7 @@ export default function App() {
             onOpenDeModal={() => setIsDeModalOpen(true)}
             onOpenManageFrequencies={() => setIsManageFreqOpen(true)}
             onOpenCustomizer={() => setIsAdminCustomizerOpen(true)}
+            onOpenEditProfile={() => setIsEditProfileOpen(true)}
           />
         )}
 
@@ -1027,6 +1056,7 @@ export default function App() {
         onOpenDeModal={() => setIsDeModalOpen(true)}
         onOpenReceipt={handleOpenReceiptModal}
         onOpenCertificate={(targetMem) => handleOpenCertificate(targetMem || currentUser)}
+        onOpenEditProfile={() => setIsEditProfileOpen(true)}
       />
 
       {/* Association Logo Lightbox Preview & Download Modal */}
@@ -1035,6 +1065,14 @@ export default function App() {
         onClose={() => setIsLogoModalOpen(false)}
         logoUrl={modalLogoUrl || settings.customLogoUrl}
         settings={settings}
+      />
+
+      {/* Edit Profile Modal (บีบอัดภาพถ่าย ≤ 25 KB & ซิงก์คลาวด์กลาง) */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        currentUser={currentUser}
+        onSaveProfile={handleSaveProfile}
       />
 
       {/* Modal แจ้งเตือนสถานะรออนุมัติหนังสือรับรอง สำหรับสมาชิกใหม่หรือยังไม่ได้รับการอนุมัติ */}

@@ -14,7 +14,8 @@ import {
   FileText,
   Sparkles,
   ExternalLink,
-  ZoomIn
+  ZoomIn,
+  Edit3
 } from 'lucide-react';
 import DeveloperCredit from './DeveloperCredit';
 import FullPhotoZoomModal from './FullPhotoZoomModal';
@@ -28,7 +29,8 @@ export default function MemberProfileModal({
   onOpenLogin,
   onOpenDeModal,
   onOpenReceipt,
-  onOpenCertificate
+  onOpenCertificate,
+  onOpenEditProfile
 }) {
   const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
 
@@ -307,34 +309,50 @@ export default function MemberProfileModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-3.5 bg-white border-t border-slate-200 flex items-center gap-2">
-          {member.phone && (
-            <a
-              href={`tel:${member.phone.replace(/\D/g, '')}`}
-              className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+        <div className="p-3.5 bg-white border-t border-slate-200 flex flex-col gap-2">
+          {currentUser && ((currentUser.id && currentUser.id === member.id) || (currentUser.citizenId && currentUser.citizenId === member.citizenId)) && onOpenEditProfile && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenEditProfile();
+              }}
+              className="w-full py-2.5 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
             >
-              <Phone className="w-4 h-4" />
-              <span>โทรออกทันที</span>
-            </a>
+              <Edit3 className="w-4 h-4" />
+              <span>✏️ แก้ไขข้อมูลส่วนตัวของฉัน / เปลี่ยนรูปโปรไฟล์</span>
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (!currentUser && onOpenLogin) {
-                onOpenLogin();
-                return;
-              }
-              if (onChatWithMember) {
-                onChatWithMember(member);
-              }
-            }}
-            className={`${member.phone ? 'w-1/2' : 'w-full'} py-2.5 bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>เปิดแชตทักหา</span>
-          </button>
+          <div className="flex items-center gap-2 w-full">
+            {member.phone && (
+              <a
+                href={`tel:${member.phone.replace(/\D/g, '')}`}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <Phone className="w-4 h-4" />
+                <span>โทรออกทันที</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                if (!currentUser && onOpenLogin) {
+                  onOpenLogin();
+                  return;
+                }
+                if (onChatWithMember) {
+                  onChatWithMember(member);
+                }
+              }}
+              className={`${member.phone ? 'flex-1' : 'w-full'} py-2.5 bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>เปิดแชตทักหา</span>
+            </button>
+          </div>
         </div>
 
         {/* Developer Credit Signature Line */}

@@ -19,7 +19,8 @@ import {
   Receipt,
   Cpu,
   Users,
-  MessageSquare
+  MessageSquare,
+  Edit3
 } from 'lucide-react';
 
 export default function Navbar({ 
@@ -39,7 +40,8 @@ export default function Navbar({
   unreadCount = 0,
   unreadNewsCount = 0,
   activeTab = 'home',
-  onSelectTab
+  onSelectTab,
+  onOpenEditProfile
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -199,6 +201,18 @@ export default function Navbar({
                         </div>
 
                         <div className="py-1">
+                          {/* Edit Profile */}
+                          <button
+                            onClick={() => {
+                              setUserDropdownOpen(false);
+                              if (onOpenEditProfile) onOpenEditProfile();
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-800 text-sky-300 flex items-center gap-2 cursor-pointer font-semibold"
+                          >
+                            <Edit3 className="w-4 h-4 text-sky-400" />
+                            <span>แก้ไขข้อมูลส่วนตัว / เปลี่ยนรูป (Edit Profile)</span>
+                          </button>
+
                           {currentUser.role === 'admin' && (
                             <button
                               onClick={() => {
@@ -315,6 +329,18 @@ export default function Navbar({
                       </div>
 
                       <div className="py-1">
+                        {/* Edit Profile (Mobile) */}
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            if (onOpenEditProfile) onOpenEditProfile();
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-xs hover:bg-slate-800 text-sky-300 flex items-center gap-2 cursor-pointer font-semibold"
+                        >
+                          <Edit3 className="w-4 h-4 text-sky-400" />
+                          <span>แก้ไขข้อมูลส่วนตัว / เปลี่ยนรูปโปรไฟล์</span>
+                        </button>
+
                         {currentUser.role === 'admin' && (
                           <button
                             onClick={() => {
