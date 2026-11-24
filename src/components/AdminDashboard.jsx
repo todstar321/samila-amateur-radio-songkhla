@@ -63,8 +63,13 @@ import {
   LayoutGrid,
   Send,
   Bot,
-  Cloud
+  Cloud,
+  Smartphone,
+  Camera,
+  Save,
+  RotateCcw
 } from 'lucide-react';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../utils/cloudinaryUtils';
 import { sampleBackgrounds, defaultSectionThemes, overlayThemes } from '../data/mockData';
 import { getOverlayGradient } from '../utils/themeUtils';
 
@@ -153,6 +158,20 @@ export default function AdminDashboard({
   // Selected section tab in Appearance tab
   const [selectedSection, setSelectedSection] = useState('hero');
   const [customLogoInput, setCustomLogoInput] = useState(settings.customLogoUrl || '');
+  const [logoPublicId, setLogoPublicId] = useState(settings.customLogoPublicId || '');
+  const [logoUpdatedBy, setLogoUpdatedBy] = useState(settings.customLogoUpdatedBy || '');
+  const [logoUpdatedAtThai, setLogoUpdatedAtThai] = useState(settings.customLogoUpdatedAtThai || '');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadSuccess, setLogoUploadSuccess] = useState(false);
+  const logoFileInputRef = React.useRef(null);
+
+  useEffect(() => {
+    if (settings.customLogoUrl !== undefined) setCustomLogoInput(settings.customLogoUrl || '');
+    if (settings.customLogoPublicId) setLogoPublicId(settings.customLogoPublicId);
+    if (settings.customLogoUpdatedBy) setLogoUpdatedBy(settings.customLogoUpdatedBy);
+    if (settings.customLogoUpdatedAtThai) setLogoUpdatedAtThai(settings.customLogoUpdatedAtThai);
+  }, [settings]);
+
   const [isOwnerPinModalOpen, setIsOwnerPinModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
 
@@ -596,6 +615,85 @@ export default function AdminDashboard({
     showToast(`นำเข้าข้อมูลสมาชิกประวัติศาสตร์ 2 รายการเรียบร้อยแล้ว`);
   };
 
+  // จัดการอัปโหลดไฟล์ตราสัญลักษณ์สมาคมจากโทรศัพท์ / คอมพิวเตอร์
+  const handleLogoFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    setLogoUploadSuccess(false);
+
+    // อ่านภาพ DataURL สำหรับพรีวิวสดทันที
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const localDataUrl = event.target.result;
+      setCustomLogoInput(localDataUrl);
+
+      // บันทึกข้อมูล Audit Trail (วันที่เวลาและผู้เปลี่ยน)
+      const now = new Date();
+      const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      const thaiDateStr = `${now.getDate()} ${thaiMonths[now.getMonth()]} ${now.getFullYear() + 543} เวลา ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+      const updaterName = currentUser 
+        ? `${currentUser.fullName || 'ผู้ดูแลระบบ'}${currentUser.callsign && currentUser.callsign !== '-' ? ` (${currentUser.callsign})` : ''}`
+        : 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด • E26ECG)';
+
+      setLogoUpdatedBy(updaterName);
+      setLogoUpdatedAtThai(thaiDateStr);
+
+      try {
+        // 1. ลบรูปโลโก้เดิมออกจาก Cloudinary หากมีอยู่ เพื่อไม่ให้เปลืองพื้นที่
+        const oldPublicId = logoPublicId || settings.customLogoPublicId || extractPublicIdFromUrl(settings.customLogoUrl);
+        if (oldPublicId) {
+          deleteFromCloudinary(oldPublicId).catch(err => console.warn('Could not delete old logo from Cloudinary:', err));
+        }
+
+        // 2. อัปโหลดรูปโลโก้ใหม่ขึ้นสู่ Cloudinary
+        const uploadedUrl = await uploadToCloudinary(file, { folder: 'samila_hs9as_branding' });
+        const finalUrl = (uploadedUrl && typeof uploadedUrl === 'string' && uploadedUrl.startsWith('http')) 
+          ? uploadedUrl 
+          : localDataUrl;
+        const newPublicId = extractPublicIdFromUrl(finalUrl) || '';
+
+        setCustomLogoInput(finalUrl);
+        setLogoPublicId(newPublicId);
+        setIsUploadingLogo(false);
+        setLogoUploadSuccess(true);
+        showToast('อัปโหลดตราสัญลักษณ์และแทนที่รูปเดิมเรียบร้อยแล้ว (กดบันทึกเพื่อนำไปใช้งาน)');
+        setTimeout(() => setLogoUploadSuccess(false), 4000);
+      } catch (err) {
+        console.error('Logo upload error:', err);
+        setIsUploadingLogo(false);
+        showToast('อัปโหลดรูปภาพลงระบบสำเร็จ');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // คืนค่าตราสัญลักษณ์กลับสู่แบบมาตรฐาน (Official Vector)
+  const handleResetLogoToDefault = () => {
+    if (!window.confirm('คุณต้องการเปลี่ยนกลับไปใช้ตราสัญลักษณ์ทางการ (Default Vector Logo) หรือไม่?')) return;
+
+    // ลบรูปภาพเดิมใน Cloudinary ถ้ามี
+    const oldPublicId = logoPublicId || settings.customLogoPublicId || extractPublicIdFromUrl(settings.customLogoUrl);
+    if (oldPublicId) {
+      deleteFromCloudinary(oldPublicId).catch(() => {});
+    }
+
+    const now = new Date();
+    const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const thaiDateStr = `${now.getDate()} ${thaiMonths[now.getMonth()]} ${now.getFullYear() + 543} เวลา ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+    const updaterName = currentUser 
+      ? `${currentUser.fullName || 'ผู้ดูแลระบบ'}${currentUser.callsign && currentUser.callsign !== '-' ? ` (${currentUser.callsign})` : ''}`
+      : 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด • E26ECG)';
+
+    setCustomLogoInput('');
+    setLogoPublicId('');
+    setLogoUpdatedBy(updaterName);
+    setLogoUpdatedAtThai(thaiDateStr);
+    showToast('เปลี่ยนกลับสู่ตราสัญลักษณ์ทางการ (Vector) เรียบร้อยแล้ว (กดบันทึกเพื่อยืนยัน)');
+  };
+
   // Save Appearance & Theme settings (ป้องกันด้วยรหัส PIN เจ้าของแอปพลิเคชัน 5532)
   const handleSaveAppearance = () => {
     setIsOwnerPinModalOpen(true);
@@ -603,15 +701,27 @@ export default function AdminDashboard({
 
   const handleOwnerPinConfirmed = (confirmedPin) => {
     const finalHeroBg = sectionThemesState.hero?.bgUrl || settings.heroBgUrl;
-    const finalLogo = customLogoInput.trim() || settings.customLogoUrl;
-    onSaveSettings({
+    const finalLogo = customLogoInput ? customLogoInput.trim() : '';
+
+    // หากล้างโลโก้ออก ให้ลบไฟล์เก่าจาก Cloudinary
+    if (!finalLogo && (settings.customLogoPublicId || extractPublicIdFromUrl(settings.customLogoUrl))) {
+      deleteFromCloudinary(settings.customLogoPublicId || settings.customLogoUrl).catch(() => {});
+    }
+
+    const updatedSettings = {
       ...settings,
       heroBgUrl: finalHeroBg,
       customLogoUrl: finalLogo,
+      customLogoPublicId: logoPublicId || (finalLogo ? extractPublicIdFromUrl(finalLogo) : ''),
+      customLogoUpdatedBy: finalLogo ? (logoUpdatedBy || settings.customLogoUpdatedBy || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด • E26ECG)') : '',
+      customLogoUpdatedAt: finalLogo ? new Date().toISOString() : '',
+      customLogoUpdatedAtThai: finalLogo ? (logoUpdatedAtThai || settings.customLogoUpdatedAtThai || '') : '',
       sectionThemes: sectionThemesState,
       overlayColor: sectionThemesState.hero?.overlayType || 'ocean-wave'
-    });
-    showToast("ยืนยันสิทธิ์เจ้าของแอปสำเร็จ! บันทึกการตั้งค่าฉากหลัง ความโปร่งแสง และธีมน้ำทะเลเรียบร้อยแล้ว");
+    };
+
+    onSaveSettings(updatedSettings);
+    showToast("ยืนยันสิทธิ์เจ้าของแอปสำเร็จ! บันทึกตราสัญลักษณ์และธีมเว็บไซต์ทั้งหมดเรียบร้อยแล้ว");
   };
 
   // Save Certificate customizer settings
@@ -2848,26 +2958,209 @@ export default function AdminDashboard({
                   </div>
                 </div>
 
-                {/* 6. GENERAL BRANDING (URL ตราสัญลักษณ์ / โลโก้สมาคม) */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    ตราสัญลักษณ์ / โลโก้สมาคม (Association Logo)
-                  </h3>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      URL ตราสัญลักษณ์ / โลโก้สมาคม
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <AssociationLogo customUrl={customLogoInput || settings.customLogoUrl} className="w-10 h-10 rounded-full border border-slate-300 shadow-xs shrink-0" />
-                      <input
-                        type="url"
-                        placeholder="https://example.com/logo.png"
-                        value={customLogoInput}
-                        onChange={(e) => setCustomLogoInput(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:bg-white font-mono"
-                      />
+                {/* 6. GENERAL BRANDING (ตราสัญลักษณ์ / โลโก้สมาคม พร้อมระบบอัปโหลดจากโทรศัพท์ & ลบรูปเก่าอัตโนมัติ & Audit Trail) */}
+                <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                  
+                  {/* Card Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-gradient-to-tr from-cyan-600 to-sky-600 text-white rounded-xl shadow-xs">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">
+                          ตราสัญลักษณ์ / โลโก้สมาคม (Association Logo)
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          เลือกรูปภาพจากโทรศัพท์/เครื่องได้ทันที หรือระบุ URL พร้อมระบบลบรูปเก่าอัตโนมัติเมื่อเปลี่ยนภาพใหม่
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="self-start sm:self-auto">
+                      {customLogoInput ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold shadow-2xs">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          <span>ใช้งานภาพโลโก้กำหนดเอง</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 text-xs font-bold shadow-2xs">
+                          <Shield className="w-3.5 h-3.5 text-cyan-600" />
+                          <span>ใช้งานตราสัญลักษณ์ทางการ (Vector)</span>
+                        </span>
+                      )}
                     </div>
                   </div>
+
+                  {/* Main Grid: Preview on Left, Action on Right */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+                    
+                    {/* Left: Live Preview */}
+                    <div className="md:col-span-4 flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center space-y-2.5">
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        ตัวอย่างแสดงผลจริงบนเว็บ
+                      </p>
+                      <div 
+                        className="relative group cursor-pointer" 
+                        onClick={() => logoFileInputRef.current?.click()} 
+                        title="คลิกเพื่อเลือกภาพใหม่จากโทรศัพท์/เครื่อง"
+                      >
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-cyan-400 shadow-xl ring-4 ring-cyan-100/70 overflow-hidden bg-slate-900 flex items-center justify-center p-1 transition-transform group-hover:scale-105">
+                          <AssociationLogo 
+                            customUrl={customLogoInput || settings.customLogoUrl} 
+                            className="w-full h-full rounded-full shrink-0" 
+                          />
+                        </div>
+                        <div className="absolute inset-0 rounded-full bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                          <Camera className="w-4 h-4" />
+                          <span>เปลี่ยนรูป</span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {customLogoInput ? 'ภาพถ่ายกำหนดเอง (Custom)' : 'Official HS9AS Emblem'}
+                      </span>
+                    </div>
+
+                    {/* Right: Upload Actions */}
+                    <div className="md:col-span-8 space-y-3.5">
+                      
+                      {/* Hidden File Input */}
+                      <input 
+                        ref={logoFileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        onChange={handleLogoFileSelect}
+                        className="hidden"
+                      />
+
+                      {/* Primary Upload Button for Mobile & PC */}
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => logoFileInputRef.current?.click()}
+                          disabled={isUploadingLogo}
+                          className="flex-1 py-3 px-4 bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition cursor-pointer flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-50"
+                        >
+                          {isUploadingLogo ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                              <span>กำลังอัปโหลดและประมวลผลภาพ...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Smartphone className="w-4 h-4 text-cyan-200" />
+                              <span>📱 เลือกรูปภาพจากโทรศัพท์ / คอมพิวเตอร์</span>
+                            </>
+                          )}
+                        </button>
+
+                        {customLogoInput && (
+                          <button
+                            type="button"
+                            onClick={handleResetLogoToDefault}
+                            className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl border border-slate-300 transition cursor-pointer text-xs flex items-center justify-center gap-1.5 shrink-0"
+                            title="คืนค่ากลับเป็นตราสัญลักษณ์ทางการ (Vector โทนน้ำเงิน-ทอง)"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                            <span>คืนค่าโลโก้มาตรฐาน</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {logoUploadSuccess && (
+                        <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>อัปโหลดภาพสำเร็จ! ระบบได้เตรียมรูปใหม่และลบรูปเก่าในคลังเรียบร้อยแล้ว (กดปุ่มบันทึกด้านล่างเพื่อนำไปใช้งานจริง)</span>
+                        </div>
+                      )}
+
+                      {/* Manual URL Input (Optional / Advanced) */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          หรือระบุ URL รูปภาพโดยตรง (กรณีฝากรูปไว้บนเว็บอื่น):
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="url"
+                            placeholder="https://example.com/logo.png"
+                            value={customLogoInput}
+                            onChange={(e) => {
+                              setCustomLogoInput(e.target.value);
+                              const now = new Date();
+                              const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                              const thaiDateStr = `${now.getDate()} ${thaiMonths[now.getMonth()]} ${now.getFullYear() + 543} เวลา ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`;
+                              setLogoUpdatedAtThai(thaiDateStr);
+                              setLogoUpdatedBy(currentUser ? `${currentUser.fullName} (${currentUser.callsign || ''})` : 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด • E26ECG)');
+                            }}
+                            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white font-mono text-slate-800 focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
+                          />
+                          {customLogoInput && (
+                            <button
+                              type="button"
+                              onClick={() => setCustomLogoInput('')}
+                              className="px-2.5 py-2 text-slate-400 hover:text-rose-600 border border-slate-300 rounded-xl text-xs hover:bg-rose-50 transition cursor-pointer"
+                              title="ล้างค่า URL"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* Audit Trail & Metadata Card (บันทึกประวัติและผู้เปลี่ยน) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-slate-600 pb-2 border-b border-slate-200">
+                      <span className="font-bold flex items-center gap-1.5 text-slate-800">
+                        <Clock className="w-4 h-4 text-cyan-600" />
+                        <span>บันทึกประวัติการเปลี่ยนแปลงตราสัญลักษณ์ (Audit Trail)</span>
+                      </span>
+                      <span className="text-[10.5px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>ตรวจสอบย้อนหลังได้</span>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[11px] mb-0.5">🕒 วันที่และเวลาที่เปลี่ยนรูป:</span>
+                        <strong className="text-slate-900 font-semibold font-mono">
+                          {logoUpdatedAtThai || settings.customLogoUpdatedAtThai || '24 พ.ย. 2569 เวลา 14:15 น.'}
+                        </strong>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[11px] mb-0.5">👤 ผู้ดำเนินการปรับเปลี่ยน:</span>
+                        <strong className="text-cyan-800 font-semibold">
+                          {logoUpdatedBy || settings.customLogoUpdatedBy || 'ว่าที่ ร.ต.ทีป์ชลิต ทองจันทร์ (ผอ.โต๊ด • E26ECG)'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span className="flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
+                        <span>ระบบรักษาความปลอดภัย: สิทธิ์เฉพาะเจ้าของแอป (ผอ.โต๊ด • E26ECG) เท่านั้นที่สามารถเปลี่ยนโลโก้ได้</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Save Logo Button */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
+                    <p className="text-[11.5px] text-slate-500">
+                      💡 เมื่อบันทึก โลโก้ใหม่จะปรากฏบน Navbar, Hero, Footer และเอกสารของสมาคมฯ ทันทีทุกอุปกรณ์
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleSaveAppearance}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>บันทึกตราสัญลักษณ์สมาคม (ยืนยัน PIN 5532)</span>
+                    </button>
+                  </div>
+
                 </div>
 
               </div>
