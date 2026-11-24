@@ -30,6 +30,8 @@ export default function HeroSection({
   onLogout, 
   onOpenRegister, 
   onNavigateToAdmin,
+  onNavigateToPending,
+  pendingCount = 0,
   onOpenCertificate,
   onOpenReceipt,
   onOpenDeModal,
@@ -549,12 +551,25 @@ export default function HeroSection({
                     
                     {/* แอดมิน Portal (เมื่อสมาชิกท่านนั้นเป็นแอดมิน) */}
                     {currentUser.role === 'admin' && (
-                      <button
-                        onClick={onNavigateToAdmin}
-                        className="w-full py-2.5 px-3 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold rounded-xl text-center text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <span>⚡ เข้าหน้าจัดการแอดมิน (Admin Portal)</span>
-                      </button>
+                      <div className="space-y-1.5">
+                        <button
+                          onClick={onNavigateToAdmin}
+                          className="w-full py-2.5 px-3 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold rounded-xl text-center text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <span>⚡ เข้าหน้าจัดการแอดมิน (Admin Portal)</span>
+                        </button>
+
+                        {pendingCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={onNavigateToPending || onNavigateToAdmin}
+                            className="w-full py-2.5 px-3 bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-bold rounded-xl text-center text-xs shadow-lg transition cursor-pointer flex items-center justify-center gap-2 animate-pulse border border-rose-400/60"
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+                            <span>🔔 มีผู้สมัครใหม่รอตรวจสอบ: <strong>{pendingCount} ท่าน</strong> (คลิกเพื่อตรวจทันที)</span>
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* เอกสารสำคัญ: ใบเสร็จรับเงิน e-Receipt & หนังสือรับรองสมาชิก */}

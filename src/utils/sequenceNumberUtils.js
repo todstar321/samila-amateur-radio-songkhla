@@ -41,7 +41,7 @@ function safeSetItem(key, value) {
 }
 
 // Default Member Sequence Config
-const DEFAULT_MEMBER_CONFIG = {
+export const DEFAULT_MEMBER_CONFIG = {
   startNumber: 30001,
   currentNumber: 30001,
   paddingDigits: 5,
@@ -49,7 +49,7 @@ const DEFAULT_MEMBER_CONFIG = {
 };
 
 // Default Receipt Sequence Config
-const DEFAULT_RECEIPT_CONFIG = {
+export const DEFAULT_RECEIPT_CONFIG = {
   currentBook: 3,
   currentNo: 111,
   sheetsPerBook: 10,

@@ -30,6 +30,8 @@ export default function Navbar({
   onLogout,
   onOpenCustomizer,
   onNavigateToAdmin,
+  onNavigateToPending,
+  pendingCount = 0,
   onOpenCertificate,
   onOpenReceipt,
   onOpenDeModal,
@@ -100,14 +102,28 @@ export default function Navbar({
             ) : (
               <div className="flex items-center gap-2">
                 {currentUser.role === 'admin' && (
-                  <button
-                    onClick={onNavigateToAdmin}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-bold rounded-xl text-xs shadow-md transition cursor-pointer"
-                    title="เข้าสู่หน้าจัดการระบบสำหรับแอดมิน"
-                  >
-                    <Sliders className="w-3.5 h-3.5" />
-                    <span>เข้าหน้าแอดมิน</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={onNavigateToAdmin}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-bold rounded-xl text-xs shadow-md transition cursor-pointer"
+                      title="เข้าสู่หน้าจัดการระบบสำหรับแอดมิน"
+                    >
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>เข้าหน้าแอดมิน</span>
+                    </button>
+
+                    {pendingCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={onNavigateToPending || onNavigateToAdmin}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-bold rounded-xl text-xs shadow-md transition cursor-pointer animate-pulse ring-2 ring-rose-400/40"
+                        title="มีผู้สมัครใหม่รอการตรวจสอบและอนุมัติ"
+                      >
+                        <BellRing className="w-3.5 h-3.5 animate-bounce" />
+                        <span>ผู้สมัครใหม่ {pendingCount}</span>
+                      </button>
+                    )}
+                  </>
                 )}
 
                 {/* Inbox Messages Button */}
@@ -682,15 +698,30 @@ export default function Navbar({
                 </button>
 
                 {currentUser.role === 'admin' && (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onNavigateToAdmin();
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-300 rounded-lg shadow cursor-pointer"
-                  >
-                    <Sliders className="w-4 h-4" /> เข้าหน้าจัดการแอดมิน (Admin Portal)
-                  </button>
+                  <>
+                    {pendingCount > 0 && (
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          if (onNavigateToPending) onNavigateToPending();
+                          else onNavigateToAdmin();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-rose-600 to-amber-600 rounded-lg shadow-md animate-pulse border border-rose-400/50 cursor-pointer"
+                      >
+                        <BellRing className="w-4 h-4 animate-bounce" />
+                        <span>ผู้สมัครใหม่ ({pendingCount} ท่าน)</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onNavigateToAdmin();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 to-amber-300 rounded-lg shadow cursor-pointer"
+                    >
+                      <Sliders className="w-4 h-4" /> เข้าหน้าจัดการแอดมิน (Admin Portal)
+                    </button>
+                  </>
                 )}
 
                 <button

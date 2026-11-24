@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AssociationLogo from './AssociationLogo';
 import DeveloperCredit from './DeveloperCredit';
 import CertificateModal from './CertificateModal';
+import MemberReceiptModal from './MemberReceiptModal';
 import ApplicationReviewModal from './ApplicationReviewModal';
 import FullPhotoZoomModal from './FullPhotoZoomModal';
 import ReceiptManager from './ReceiptManager';
@@ -28,6 +29,7 @@ import {
   Clock, 
   Plus, 
   Trash2, 
+  Pencil,
   Pin, 
   ExternalLink, 
   LogOut, 
@@ -115,6 +117,10 @@ export default function AdminDashboard({
 
   // Selected member for receipt issuance
   const [receiptSelectedMember, setReceiptSelectedMember] = useState(null);
+  const [viewReceiptMember, setViewReceiptMember] = useState(null);
+
+  // Selected member for Admin Edit Modal (แก้ไขเบอร์โทร, เลขบัตร, สัญญาณเรียกขาน)
+  const [editingMember, setEditingMember] = useState(null);
 
   // Selected member for application review modal (ใบสมัคร & เอกสารแนบ)
   const [reviewingApplicationMember, setReviewingApplicationMember] = useState(null);
@@ -217,8 +223,19 @@ export default function AdminDashboard({
   const pendingMembers = membersList.filter(m => m.status === 'รอตรวจสอบ' || m.status === 'pending');
   const pendingCount = pendingMembers.length;
 
+  // เรียงลำดับสมาชิกจากปัจจุบันไปหาอดีต (คนล่าสุด/อนุมัติล่าสุดอยู่บนสุด)
+  const sortedMembersList = [...membersList].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.approvedAt || a.registeredDate || 0).getTime();
+    const timeB = new Date(b.createdAt || b.approvedAt || b.registeredDate || 0).getTime();
+    if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+    const numA = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
+    if (numA !== numB) return numB - numA;
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
+
   // Filter members
-  const filteredMembers = membersList.filter(mem => {
+  const filteredMembers = sortedMembersList.filter(mem => {
     const query = searchQuery.toLowerCase();
     const matchSearch = 
       (mem.callsign && mem.callsign.toLowerCase().includes(query)) ||
@@ -1509,18 +1526,25 @@ export default function AdminDashboard({
                                       <span>หนังสือรับรอง</span>
                                     </button>
 
-                                    {/* ออกใบเสร็จรับเงิน */}
+                                    {/* เปิดใบเสร็จรับเงิน (e-Receipt) */}
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setReceiptSelectedMember(mem);
-                                        setActiveTab('receipts');
-                                      }}
+                                      onClick={() => setViewReceiptMember(mem)}
                                       className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1 shrink-0"
-                                      title="ออกใบเสร็จรับเงินค่าบำรุง/แรกเข้าให้สมาชิกท่านนี้"
+                                      title="เปิดดูและพิมพ์ใบเสร็จรับเงินของสมาชิกท่านนี้"
                                     >
                                       <Receipt className="w-3.5 h-3.5 text-emerald-600" />
                                       <span>ใบเสร็จ</span>
+                                    </button>
+
+                                    {/* แก้ไขข้อมูลสมาชิก (เบอร์โทร, เลขบัตรประชาชน, ข้อมูลส่วนตัว) */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingMember(mem)}
+                                      className="p-1.5 text-slate-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg border border-slate-200 transition cursor-pointer shrink-0"
+                                      title="แก้ไขข้อมูลสมาชิก (เบอร์โทร, เลขบัตรประชาชน 13 หลัก, นามเรียกขาน)"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
                                     </button>
 
                                     {/* ตั้ง/ถอดแอดมิน */}
@@ -1766,18 +1790,25 @@ export default function AdminDashboard({
                         <span>หนังสือรับรอง</span>
                       </button>
 
-                      {/* ออกใบเสร็จรับเงิน */}
+                      {/* เปิดใบเสร็จรับเงิน (e-Receipt) */}
                       <button
                         type="button"
-                        onClick={() => {
-                          setReceiptSelectedMember(mem);
-                          setActiveTab('receipts');
-                        }}
+                        onClick={() => setViewReceiptMember(mem)}
                         className="flex-1 py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1"
-                        title="ออกใบเสร็จรับเงินให้สมาชิกท่านนี้"
+                        title="เปิดดูและพิมพ์ใบเสร็จรับเงินให้สมาชิกท่านนี้"
                       >
                         <Receipt className="w-3.5 h-3.5 text-emerald-600" />
                         <span>ใบเสร็จ</span>
+                      </button>
+
+                      {/* แก้ไขข้อมูลสมาชิก */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingMember(mem)}
+                        className="py-2 px-2.5 text-slate-500 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg border border-slate-200 transition cursor-pointer"
+                        title="แก้ไขข้อมูลสมาชิก (เบอร์โทร, เลขบัตร, นามเรียกขาน)"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
 
                       {/* ตั้ง/ถอดแอดมิน */}
@@ -2902,8 +2933,7 @@ export default function AdminDashboard({
           member={reviewingApplicationMember}
           currentUser={currentUser}
           onOpenReceipt={(mem) => {
-            setReceiptSelectedMember(mem);
-            setActiveTab('receipts');
+            setViewReceiptMember(mem);
           }}
           onApproveMember={(id, auditData) => {
             handleApproveMember(id, auditData);
@@ -2913,6 +2943,30 @@ export default function AdminDashboard({
             const updated = membersList.map(m => m.id === updatedMem.id ? updatedMem : m);
             onUpdateMembersList(updated);
             setReviewingApplicationMember(updatedMem);
+          }}
+        />
+      )}
+
+      {/* Member Receipt Modal (View & Print Official e-Receipt) */}
+      {viewReceiptMember && (
+        <MemberReceiptModal
+          isOpen={!!viewReceiptMember}
+          onClose={() => setViewReceiptMember(null)}
+          member={viewReceiptMember}
+          currentUser={currentUser}
+        />
+      )}
+
+      {/* Admin Edit Member Modal (แก้ไขเบอร์โทร, เลขบัตร, ข้อมูลสมาชิก) */}
+      {editingMember && (
+        <AdminEditMemberModal
+          member={editingMember}
+          onClose={() => setEditingMember(null)}
+          onSave={(updatedMem) => {
+            const updated = membersList.map(m => m.id === updatedMem.id ? updatedMem : m);
+            onUpdateMembersList(updated);
+            setEditingMember(null);
+            showToast(`แก้ไขข้อมูลสมาชิก "${updatedMem.fullName}" เรียบร้อยแล้ว`);
           }}
         />
       )}
@@ -2929,6 +2983,8 @@ export default function AdminDashboard({
       <SequenceSettingsModal
         isOpen={isSequenceModalOpen}
         onClose={() => setIsSequenceModalOpen(false)}
+        membersList={membersList}
+        currentUser={currentUser}
         onSaveSuccess={() => {
           setMemberSeqConfig(getMemberSequenceConfig());
           showToast('บันทึกการตั้งค่าระบบรันเลขสมาชิกและตัดเล่มเรียบร้อยแล้ว');
@@ -2953,6 +3009,149 @@ export default function AdminDashboard({
         onClose={() => setIsTelegramModalOpen(false)}
       />
 
+    </div>
+  );
+}
+
+/**
+ * Modal สำหรับ Admin แก้ไขข้อมูลสมาชิก (เช่น เบอร์โทรศัพท์, เลขบัตรประชาชน, สัญญาณเรียกขาน)
+ * เพื่อแก้ปัญหาเบอร์ซ้ำ หรือข้อมูลผิดพลาด
+ */
+function AdminEditMemberModal({ member, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    fullName: member?.fullName || '',
+    nickname: member?.nickname || '',
+    callsign: member?.callsign || '',
+    citizenId: member?.citizenId || '',
+    phone: member?.phone || '',
+    memberId: member?.memberId || '',
+    memberType: member?.memberType || 'สมาชิกสามัญ 5 ปี',
+    status: member?.status || 'รอตรวจสอบ',
+    memberStatus: member?.memberStatus || 'ปกติ (Active)',
+    currentAddress: member?.currentAddress || member?.registeredAddress || '',
+    district: member?.district || 'อ.หาดใหญ่',
+    radioStandby: member?.radioStandby || '145.6750 MHz',
+    email: member?.email || '',
+    lineId: member?.lineId || '',
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.fullName.trim()) {
+      alert('กรุณาระบุชื่อ-นามสกุล');
+      return;
+    }
+    const cleanId = formData.citizenId.replace(/\D/g, '');
+    if (cleanId.length > 0 && cleanId.length !== 13) {
+      alert('เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก');
+      return;
+    }
+    onSave({
+      ...member,
+      ...formData,
+      citizenId: cleanId || formData.citizenId,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+      <div 
+        className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-r from-slate-900 to-sky-950 text-white px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-cyan-400" />
+            <h3 className="font-bold text-sm">แก้ไขข้อมูลสมาชิก (Admin Override)</h3>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-xs">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block font-semibold text-slate-700 mb-1">ชื่อ - นามสกุล *</label>
+              <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-medium" />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">ชื่อเล่น</label>
+              <input type="text" name="nickname" value={formData.nickname} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">สัญญาณเรียกขาน (Callsign)</label>
+              <input type="text" name="callsign" value={formData.callsign} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono font-bold" />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">รหัสสมาชิก (Member ID)</label>
+              <input type="text" name="memberId" value={formData.memberId} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono font-bold" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">เลขบัตรประชาชน (13 หลัก)</label>
+              <input type="text" name="citizenId" value={formData.citizenId} onChange={handleChange} maxLength={13} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono" placeholder="13 หลัก" />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ *</label>
+              <input type="text" name="phone" value={formData.phone} onChange={handleChange} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono font-bold" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">สถานะการสมัคร</label>
+              <select name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900">
+                <option value="รอตรวจสอบ">รอตรวจสอบ</option>
+                <option value="อนุมัติแล้ว">อนุมัติแล้ว</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">สถานะสมาชิก</label>
+              <select name="memberStatus" value={formData.memberStatus} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900">
+                <option value="ปกติ (Active)">ปกติ (Active)</option>
+                <option value="รออนุมัติ">รออนุมัติ</option>
+                <option value="หมดอายุ">หมดอายุ</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">ที่อยู่ปัจจุบัน</label>
+            <input type="text" name="currentAddress" value={formData.currentAddress} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">พื้นที่ / อำเภอ</label>
+              <input type="text" name="district" value={formData.district} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">ความถี่หลัก (MHz)</label>
+              <input type="text" name="radioStandby" value={formData.radioStandby} onChange={handleChange} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 font-mono" />
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-xl font-semibold text-slate-700 transition cursor-pointer">
+              ยกเลิก
+            </button>
+            <button type="submit" className="px-4 py-2 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded-xl shadow transition cursor-pointer">
+              บันทึกการแก้ไข
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

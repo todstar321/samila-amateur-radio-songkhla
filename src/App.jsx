@@ -265,11 +265,25 @@ export default function App() {
           } catch (e) {}
           return merged;
         });
+
+        // Automatically update currentUser status if approved by admin on another device
+        setCurrentUser(curr => {
+          if (!curr) return null;
+          const matched = cloudMembers.find(m => (curr.id && m.id === curr.id) || (curr.citizenId && m.citizenId === curr.citizenId));
+          if (matched && (matched.status !== curr.status || matched.memberStatus !== curr.memberStatus || matched.memberId !== curr.memberId)) {
+            const updatedCurr = { ...curr, ...matched };
+            try {
+              localStorage.setItem('samila_current_user', JSON.stringify(updatedCurr));
+            } catch (e) {}
+            return updatedCurr;
+          }
+          return curr;
+        });
       }).catch(() => {});
     };
 
     syncCloud();
-    const interval = setInterval(syncCloud, 25000);
+    const interval = setInterval(syncCloud, 15000); // 15 seconds auto-poll
     window.addEventListener('focus', syncCloud);
 
     return () => { 
@@ -402,14 +416,36 @@ export default function App() {
 
   const [pendingCertAlert, setPendingCertAlert] = useState(false);
   const [pendingCertUser, setPendingCertUser] = useState(null);
+  const [adminInitialFilter, setAdminInitialFilter] = useState('all');
 
   // Certificate gate: Only approved members or admin can view/download
-  const handleOpenCertificate = (memberToView = currentUser) => {
-    const mem = memberToView || currentUser;
-    if (!mem) return;
+  // Real-time synchronization across devices (fetches latest cloud status before checking)
+  const handleOpenCertificate = async (memberToView = currentUser) => {
+    const rawMem = memberToView || currentUser;
+    if (!rawMem) return;
+
+    // 1. Immediately fetch latest central members to ensure real-time cross-device sync
+    let activeMembers = membersList;
+    try {
+      const freshMembers = await fetchCentralMembers();
+      if (Array.isArray(freshMembers) && freshMembers.length > 0) {
+        activeMembers = freshMembers;
+        setMembersList(freshMembers);
+      }
+    } catch (e) {}
+
+    const mem = activeMembers.find(m => (rawMem.id && m.id === rawMem.id) || (rawMem.citizenId && m.citizenId === rawMem.citizenId)) || rawMem;
+
+    // Automatically update currentUser if matches
+    if (currentUser && ((rawMem.id && currentUser.id === rawMem.id) || (rawMem.citizenId && currentUser.citizenId === rawMem.citizenId))) {
+      if (mem.status !== currentUser.status || mem.memberStatus !== currentUser.memberStatus) {
+        setCurrentUser(mem);
+        try { localStorage.setItem('samila_current_user', JSON.stringify(mem)); } catch {}
+      }
+    }
 
     const isAdmin = currentUser?.role === 'admin' || currentUser?.isSuperAdmin;
-    const isApproved = mem.status === 'อนุมัติแล้ว';
+    const isApproved = mem.status === 'อนุมัติแล้ว' || mem.memberStatus === 'ปกติ (Active)';
 
     if (!isAdmin && !isApproved) {
       setPendingCertUser(mem);
@@ -610,13 +646,17 @@ export default function App() {
     showToast(`เผยแพร่ประกาศ "${newArticle.title.substring(0, 25)}..." เรียบร้อยแล้ว`);
   };
 
-  // Switch to admin view handler
-  const handleOpenAdminView = () => {
+  // Calculate pending applications count for admin alerts
+  const pendingMembersCount = membersList.filter(m => m.status === 'รอตรวจสอบ' || m.status === 'pending').length;
+
+  // Switch to admin view handler (supports jumping straight to a specific filter, e.g. 'pending')
+  const handleOpenAdminView = (initialFilter = 'all') => {
     // If not logged in as admin, auto-login with admin for smooth workflow
     if (currentUser?.role !== 'admin') {
       const adminAcc = membersList.find(m => m.role === 'admin') || initialMembersList[0];
       handleLoginSuccess(adminAcc);
     }
+    setAdminInitialFilter(initialFilter);
     setCurrentView('admin');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -630,6 +670,7 @@ export default function App() {
         onSaveSettings={handleSaveSettings}
         membersList={membersList}
         onUpdateMembersList={handleUpdateMembersList}
+        initialMemberRoleFilter={adminInitialFilter}
         newsList={newsList}
         onUpdateNewsList={handleUpdateNewsList}
         deRequests={deRequests}
@@ -657,7 +698,9 @@ export default function App() {
         onOpenRegister={() => setIsRegisterOpen(true)}
         onLogout={handleLogout}
         onOpenCustomizer={() => setIsAdminCustomizerOpen(true)}
-        onNavigateToAdmin={handleOpenAdminView}
+        onNavigateToAdmin={() => handleOpenAdminView('all')}
+        onNavigateToPending={() => handleOpenAdminView('pending')}
+        pendingCount={pendingMembersCount}
         onOpenCertificate={() => handleOpenCertificate(currentUser)}
         onOpenReceipt={() => handleOpenReceiptModal(currentUser)}
         onOpenDeModal={() => setIsDeModalOpen(true)}
@@ -678,7 +721,9 @@ export default function App() {
             onLoginSuccess={handleLoginSuccess}
             onLogout={handleLogout}
             onOpenRegister={() => setIsRegisterOpen(true)}
-            onNavigateToAdmin={handleOpenAdminView}
+            onNavigateToAdmin={() => handleOpenAdminView('all')}
+            onNavigateToPending={() => handleOpenAdminView('pending')}
+            pendingCount={pendingMembersCount}
             onOpenCertificate={() => handleOpenCertificate(currentUser)}
             onOpenReceipt={() => handleOpenReceiptModal(currentUser)}
             onOpenDeModal={() => setIsDeModalOpen(true)}
@@ -797,13 +842,14 @@ export default function App() {
         onRegisterSuccess={handleRegisterSuccess}
         defaultSettings={settings}
         onOpenReceipt={handleOpenReceiptModal}
+        membersList={membersList}
       />
 
       {/* Official Certificate Modal */}
       <CertificateModal
         isOpen={isCertificateOpen}
         onClose={() => setIsCertificateOpen(false)}
-        member={currentUser || membersList[0]}
+        member={receiptMember || currentUser || membersList[0]}
         settings={settings}
       />
 

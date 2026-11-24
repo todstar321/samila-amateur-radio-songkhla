@@ -38,7 +38,8 @@ export default function RegisterModal({
   onClose, 
   onRegisterSuccess, 
   defaultSettings,
-  onOpenReceipt 
+  onOpenReceipt,
+  membersList = []
 }) {
   // Step in wizard (1 to 5)
   const [currentStep, setCurrentStep] = useState(1);
@@ -206,6 +207,17 @@ export default function RegisterModal({
         setErrorMessage('กรุณาระบุเลขประจำตัวประชาชน 13 หลักให้ถูกต้อง');
         return;
       }
+      // ตรวจสอบเลขประจำตัวประชาชนซ้ำกับสมาชิกในระบบ
+      if (Array.isArray(membersList) && membersList.length > 0) {
+        const dupCitizen = membersList.find(m => {
+          const mClean = String(m.citizenId || '').replace(/\D/g, '');
+          return mClean && mClean === cleanCitizen;
+        });
+        if (dupCitizen) {
+          setErrorMessage(`เลขประจำตัวประชาชน ${cleanCitizen} นี้มีอยู่ในระบบแล้ว (หากท่านเคยยื่นสมัครแล้ว หรือต้องการตรวจสอบข้อมูล โปรดติดต่อผู้ดูแลระบบ)`);
+          return;
+        }
+      }
       if (!citizenIssueDate || !citizenIssueDate.trim()) {
         setErrorMessage('กรุณาระบุวันออกบัตรประชาชน');
         return;
@@ -240,6 +252,18 @@ export default function RegisterModal({
       if (!cleanPhone || cleanPhone.length < 9) {
         setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
         return;
+      }
+      // ตรวจสอบเบอร์โทรศัพท์ซ้ำกับสมาชิกในระบบ
+      if (Array.isArray(membersList) && membersList.length > 0) {
+        const dupPhone = membersList.find(m => {
+          const mClean = String(m.phone || '').replace(/\D/g, '');
+          return mClean && mClean.length >= 9 && mClean === cleanPhone;
+        });
+        if (dupPhone) {
+          const ownerName = dupPhone.fullName || dupPhone.callsign || 'สมาชิกท่านเดิม';
+          setErrorMessage(`เบอร์โทรศัพท์ ${phone.trim()} นี้ถูกลงทะเบียนไว้ในระบบแล้วโดย "${ownerName}" หากท่านเป็นผู้ใช้งานเบอร์นี้ในปัจจุบัน โปรดติดต่อแอดมินสมาคมฯ เพื่อให้แอดมินแก้ไขข้อมูลสมาชิกเดิม`);
+          return;
+        }
       }
       if (!sameAsCurrent && !registeredAddress.trim()) {
         setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');
@@ -311,6 +335,14 @@ export default function RegisterModal({
         setCurrentStep(2);
         return;
       }
+      if (Array.isArray(membersList) && membersList.length > 0) {
+        const dupCitizen = membersList.find(m => String(m.citizenId || '').replace(/\D/g, '') === cleanCitizen);
+        if (dupCitizen) {
+          setErrorMessage(`เลขประจำตัวประชาชน ${cleanCitizen} นี้มีอยู่ในระบบแล้ว (หากท่านเคยยื่นสมัครแล้ว โปรดติดต่อผู้ดูแลระบบ)`);
+          setCurrentStep(2);
+          return;
+        }
+      }
       if (!citizenIssueDate.trim() || !citizenExpiryDate.trim() || !birthDate.trim()) {
         setErrorMessage('กรุณาระบุข้อมูลวันที่ให้ครบถ้วน');
         setCurrentStep(2);
@@ -332,6 +364,15 @@ export default function RegisterModal({
         setErrorMessage('กรุณาระบุหมายเลขโทรศัพท์ติดต่อให้ถูกต้อง');
         setCurrentStep(3);
         return;
+      }
+      if (Array.isArray(membersList) && membersList.length > 0) {
+        const dupPhone = membersList.find(m => String(m.phone || '').replace(/\D/g, '') === cleanPhone);
+        if (dupPhone) {
+          const ownerName = dupPhone.fullName || dupPhone.callsign || 'สมาชิกท่านเดิม';
+          setErrorMessage(`เบอร์โทรศัพท์ ${phone.trim()} นี้ถูกลงทะเบียนไว้ในระบบแล้วโดย "${ownerName}" หากท่านเป็นผู้ใช้งานเบอร์นี้ในปัจจุบัน โปรดติดต่อแอดมินสมาคมฯ เพื่อให้แอดมินแก้ไขข้อมูลสมาชิกเดิม`);
+          setCurrentStep(3);
+          return;
+        }
       }
       if (!sameAsCurrent && !registeredAddress.trim()) {
         setErrorMessage('กรุณาระบุที่อยู่ตามทะเบียนบ้าน');

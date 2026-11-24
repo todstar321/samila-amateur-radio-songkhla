@@ -374,7 +374,12 @@ export function generateApplicationFormSvg(member, settings = {}) {
         }
       }
       else if (key === 'postalCode') val = m.postalCode || '90110';
-      else if (key === 'phone') val = m.phone || '093-792-5665';
+      else if (key === 'phone') {
+        const cleanP = String(m.phone || '').replace(/\D/g, '');
+        val = cleanP.length === 10 
+          ? `${cleanP.slice(0, 3)}-${cleanP.slice(3, 6)}-${cleanP.slice(6)}`
+          : (cleanP || String(m.phone || '093-792-5665').replace(/^(?:เบอร์โทรศัพท์|เบอร์โทร|โทรศัพท์|โทร\.?|tel\.?|phone:?)\s*[:\-\s]*/i, '').trim());
+      }
       else if (key === 'email') val = m.email || 'theepchalit@email.com';
       else if (key === 'lineId') val = m.lineId || 'E26ECG';
       else if (key === 'docIdCardCheck' || key === 'docPhotoCheck' || key === 'tierStandard5YCheck') val = '✓';
@@ -829,10 +834,17 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
       else if (key === 'memberId') val = String(m.memberId || '369113');
       else if (key === 'address') {
         const rawAddr = m.currentAddress || m.registeredAddress || '66 ถนนเลียบคลองชลประทาน ต.ควนลัง อ.หาดใหญ่ จ.สงขลา 90110';
-        val = parseAddressAndPostalCode(rawAddr, m.postalCode).cleanAddress;
+        let clean = parseAddressAndPostalCode(rawAddr, m.postalCode).cleanAddress;
+        if (clean.length > 55) {
+          clean = clean.slice(0, 52) + '...';
+        }
+        val = clean;
       }
       else if (key === 'phone') {
-        val = String(m.phone || '093-792-5665').replace(/^(?:เบอร์โทรศัพท์|เบอร์โทร|โทรศัพท์|โทร\.?|tel\.?|phone:?)\s*[:\-\s]*/i, '').trim();
+        const cleanP = String(m.phone || '').replace(/\D/g, '');
+        val = cleanP.length === 10 
+          ? `${cleanP.slice(0, 3)}-${cleanP.slice(3, 6)}-${cleanP.slice(6)}`
+          : (cleanP || String(m.phone || '093-792-5665').replace(/^(?:เบอร์โทรศัพท์|เบอร์โทร|โทรศัพท์|โทร\.?|tel\.?|phone:?)\s*[:\-\s]*/i, '').trim());
       }
       else if (key === 'memberFeeCheck') val = '✓';
       else if (key === 'memberFeeTypeCheck') val = '✓';
@@ -844,7 +856,7 @@ export function generateReceiptSvg(member, receiptInfo = {}, settings = {}) {
       if (val) {
         if (key === 'address') {
           const effFs = val.length > 40 ? Math.max(9.5, Math.floor(fs * 0.88)) : fs;
-          elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs}" fill="${color}" font-weight="${bold}" dominant-baseline="central" ${val.length > 30 ? 'textLength="435" lengthAdjust="spacingAndGlyphs"' : ''}>${escapeXml(val)}</text>`);
+          elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${effFs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(val)}</text>`);
         } else {
           elements.push(`<text x="${x}" y="${y + 11}" font-family="'Sarabun', 'Thonburi', sans-serif" font-size="${fs}" fill="${color}" font-weight="${bold}" dominant-baseline="central">${escapeXml(val)}</text>`);
         }

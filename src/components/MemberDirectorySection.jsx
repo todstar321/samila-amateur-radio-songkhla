@@ -14,6 +14,7 @@ import {
   MapPin, 
   UserCheck, 
   ChevronRight, 
+  ChevronLeft,
   ExternalLink,
   SlidersHorizontal,
   Eye,
@@ -40,9 +41,17 @@ export default function MemberDirectorySection({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('ทั้งหมด');
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('sheet'); // 'sheet' (Google Sheets Table) or 'cards' (Photo Cards)
   const [previewPhotoMember, setPreviewPhotoMember] = useState(null);
   const [zoomMember, setZoomMember] = useState(null);
+
+  const ITEMS_PER_PAGE = 20;
+
+  // รีเซ็ตหน้ากลับไปหน้าแรกเมื่อค้นหาหรือเปลี่ยนตัวกรอง
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedFilter]);
 
   // ตรวจสอบสิทธิ์การเป็นสมาชิกที่ได้รับการอนุมัติแล้ว (Admin, SuperAdmin หรือ status === 'อนุมัติแล้ว')
   const isApproved = currentUser && (
@@ -66,8 +75,19 @@ export default function MemberDirectorySection({
     { id: 'เมืองสงขลา', label: 'อ.เมืองสงขลา' },
   ];
 
+  // เรียงลำดับสมาชิกจากปัจจุบันไปหาอดีต (คนล่าสุด/อนุมัติล่าสุดอยู่บนสุด)
+  const sortedMembers = [...membersList].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.approvedAt || a.registeredDate || 0).getTime();
+    const timeB = new Date(b.createdAt || b.approvedAt || b.registeredDate || 0).getTime();
+    if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+    const numA = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
+    if (numA !== numB) return numB - numA;
+    return String(b.id || '').localeCompare(String(a.id || ''));
+  });
+
   // Filtering Logic
-  const filteredMembers = membersList.filter(member => {
+  const filteredMembers = sortedMembers.filter(member => {
     // Exclude unapproved members from public ham directory
     if (member.status === 'รอตรวจสอบ' || member.status === 'รออนุมัติ') return false;
 
@@ -96,6 +116,12 @@ export default function MemberDirectorySection({
 
     return true;
   });
+
+  // การแบ่งหน้า (Pagination) 20 รายการต่อหน้า
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedMembers = filteredMembers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Export to CSV (Google Sheets Export)
   const handleExportCSV = () => {
@@ -308,7 +334,7 @@ export default function MemberDirectorySection({
                       </td>
                     </tr>
                   ) : (
-                    filteredMembers.map((member, index) => {
+                    paginatedMembers.map((member, index) => {
                       const isEven = index % 2 === 0;
                       const displayAvatar = isApproved 
                         ? (member.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80")
@@ -542,19 +568,65 @@ export default function MemberDirectorySection({
               </table>
             </div>
 
-            {/* Table Footer info */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-              <span className="font-mono">แสดง {filteredMembers.length} รายการ จากสมาชิกทั้งหมด {membersList.length} สถานี</span>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>ข้อมูลอัปเดตแบบเรียลไทม์ตามฐานข้อมูลสมาคมวิทยุสมัครเล่นสมิหลา</span>
-              </div>
+            {/* Table Footer info & Pagination */}
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+              <span className="font-mono">
+                แสดง {filteredMembers.length > 0 ? startIndex + 1 : 0} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredMembers.length)} จากทั้งหมด {filteredMembers.length} สถานี (หน้า {safeCurrentPage}/{totalPages})
+              </span>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage <= 1}
+                    className="px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-cyan-50 hover:border-cyan-400 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>ก่อนหน้า</span>
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                    .map((p, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      const showEllipsis = prev && p - prev > 1;
+                      return (
+                        <React.Fragment key={p}>
+                          {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(p)}
+                            className={`min-w-[28px] h-7 px-2 rounded-lg font-bold transition cursor-pointer text-xs ${
+                              safeCurrentPage === p
+                                ? 'bg-gradient-to-r from-[#012a4a] to-[#01497c] text-white shadow-xs'
+                                : 'border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safeCurrentPage >= totalPages}
+                    className="px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-cyan-50 hover:border-cyan-400 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>ถัดไป</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
           /* ================= VIEW 2: PHOTO CARDS GRID (เห็นหน้าตาชัดเจน) ================= */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredMembers.map((member) => {
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {paginatedMembers.map((member) => {
               const displayAvatar = isApproved 
                 ? (member.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80")
                 : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=20&q=10";
@@ -693,7 +765,62 @@ export default function MemberDirectorySection({
               );
             })}
           </div>
-        )}
+
+          {/* Pagination Bar for Cards View */}
+          {totalPages > 1 && (
+            <div className="bg-white/95 backdrop-blur-md border border-cyan-200/80 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="text-slate-600 font-mono">
+                แสดง {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredMembers.length)} จากทั้งหมด {filteredMembers.length} ท่าน (หน้า {safeCurrentPage}/{totalPages})
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-cyan-50 hover:border-cyan-400 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>ก่อนหน้า</span>
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                  .map((p, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && p - prev > 1;
+                    return (
+                      <React.Fragment key={p}>
+                        {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={`min-w-[28px] h-7 px-2 rounded-lg font-bold transition cursor-pointer text-xs ${
+                            safeCurrentPage === p
+                              ? 'bg-gradient-to-r from-[#012a4a] to-[#01497c] text-white shadow-xs'
+                              : 'border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-cyan-50 hover:border-cyan-400 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer"
+                >
+                  <span>ถัดไป</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
           </div>
 

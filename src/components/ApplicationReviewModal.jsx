@@ -55,6 +55,19 @@ export default function ApplicationReviewModal({
 
   if (!isOpen || !currentMember) return null;
 
+  // Real files uploaded by applicant (if available)
+  const realIdCard = (currentMember.idCardSlip && (currentMember.idCardSlip.startsWith('http') || currentMember.idCardSlip.startsWith('data:image'))) 
+    ? currentMember.idCardSlip 
+    : (currentMember.idCardDataUrl || null);
+
+  const realHouseReg = (currentMember.houseSlip && (currentMember.houseSlip.startsWith('http') || currentMember.houseSlip.startsWith('data:image'))) 
+    ? currentMember.houseSlip 
+    : (currentMember.houseDataUrl || null);
+
+  const realBankSlip = (currentMember.transferSlip && (currentMember.transferSlip.startsWith('http') || currentMember.transferSlip.startsWith('data:image'))) 
+    ? currentMember.transferSlip 
+    : (currentMember.slipDataUrl || null);
+
   // Generate SVG strings for each document using currentMember
   const appFormSvg = generateApplicationFormSvg(currentMember);
   const citizenIdSvg = generateCitizenIdCardSvg(currentMember);
@@ -111,27 +124,59 @@ export default function ApplicationReviewModal({
     });
   };
 
-  // Batch download all 4 files sequentially
+  // Helper to download real uploaded image file (or fallback to generated SVG PNG)
+  const downloadFileOrSvg = async (realFileUrl, filename, fallbackSvgString, w = 1200, h = 1700) => {
+    if (realFileUrl) {
+      try {
+        if (realFileUrl.startsWith('data:image') || realFileUrl.startsWith('blob:')) {
+          const a = document.createElement('a');
+          a.download = filename;
+          a.href = realFileUrl;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          return true;
+        } else if (realFileUrl.startsWith('http')) {
+          const res = await fetch(realFileUrl, { mode: 'cors' });
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.download = filename;
+          a.href = objUrl;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+          return true;
+        }
+      } catch (err) {
+        console.warn('Real file download error, falling back to SVG:', err);
+      }
+    }
+    return downloadSvgAsPng(fallbackSvgString, filename, w, h);
+  };
+
+  // Batch download all 4 files sequentially (download real files uploaded by applicant)
   const handleDownloadAllDocuments = async () => {
     setIsDownloading(true);
     setDownloadSuccess(false);
 
     const safeName = (member.fullName || 'ผู้สมัคร').replace(/[\s/\\:*?"<>|]/g, '_');
 
-    // 1. Download Application Form
+    // 1. Download Application Form (Official Template with applicant photo)
     await downloadSvgAsPng(appFormSvg, `01_ใบสมัครสมาชิก_${safeName}.png`, 1200, 1695);
     await new Promise((r) => setTimeout(r, 350));
 
-    // 2. Download Citizen ID Card
-    await downloadSvgAsPng(citizenIdSvg, `02_สำเนาบัตรประชาชน_${safeName}.png`, 1200, 750);
+    // 2. Download Citizen ID Card (Real uploaded photo or fallback)
+    await downloadFileOrSvg(realIdCard, `02_สำเนาบัตรประชาชน_${safeName}.png`, citizenIdSvg, 1200, 750);
     await new Promise((r) => setTimeout(r, 350));
 
-    // 3. Download House Registration
-    await downloadSvgAsPng(houseRegSvg, `03_สำเนาทะเบียนบ้าน_${safeName}.png`, 1200, 975);
+    // 3. Download House Registration (Real uploaded photo or fallback)
+    await downloadFileOrSvg(realHouseReg, `03_สำเนาทะเบียนบ้าน_${safeName}.png`, houseRegSvg, 1200, 975);
     await new Promise((r) => setTimeout(r, 350));
 
-    // 4. Download Bank Slip
-    await downloadSvgAsPng(bankSlipSvg, `04_สลิปโอนเงินธนาคาร_${safeName}.png`, 900, 1275);
+    // 4. Download Bank Slip (Real uploaded photo or fallback)
+    await downloadFileOrSvg(realBankSlip, `04_สลิปโอนเงินธนาคาร_${safeName}.png`, bankSlipSvg, 900, 1275);
 
     setIsDownloading(false);
     setDownloadSuccess(true);
@@ -501,11 +546,11 @@ export default function ApplicationReviewModal({
               <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
                 <div className="text-xs text-slate-600 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-sky-500" />
-                  <span><strong>เอกสารที่ 2:</strong> สำเนาบัตรประจำตัวประชาชน พร้อมลายเซ็นและคำรับรองถูกต้อง</span>
+                  <span><strong>เอกสารที่ 2:</strong> {realIdCard ? 'สำเนาบัตรประจำตัวประชาชนจริงที่ผู้สมัครแนบมา' : 'สำเนาบัตรประจำตัวประชาชน พร้อมลายเซ็นและคำรับรองถูกต้อง'}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => downloadSvgAsPng(citizenIdSvg, `สำเนาบัตรประชาชน_${safeName}.png`, 1200, 750)}
+                  onClick={() => downloadFileOrSvg(realIdCard, `สำเนาบัตรประชาชน_${safeName}.png`, citizenIdSvg, 1200, 750)}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -514,10 +559,20 @@ export default function ApplicationReviewModal({
               </div>
 
               <div className="bg-white rounded-xl shadow-md border border-slate-300 p-4 sm:p-8 flex justify-center">
-                <div 
-                  className="w-full max-w-2xl"
-                  dangerouslySetInnerHTML={{ __html: citizenIdSvg }}
-                />
+                {realIdCard ? (
+                  <div className="flex flex-col items-center gap-3 w-full">
+                    <img 
+                      src={realIdCard} 
+                      alt="บัตรประชาชนจริง" 
+                      className="max-w-2xl w-full h-auto rounded-xl shadow border border-slate-200 object-contain max-h-[70vh]" 
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="w-full max-w-2xl"
+                    dangerouslySetInnerHTML={{ __html: citizenIdSvg }}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -528,11 +583,11 @@ export default function ApplicationReviewModal({
               <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
                 <div className="text-xs text-slate-600 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                  <span><strong>เอกสารที่ 3:</strong> สำเนาทะเบียนบ้าน (ท.ร.14) ระบุที่อยู่ภูมิลำเนาใน จ.สงขลา</span>
+                  <span><strong>เอกสารที่ 3:</strong> {realHouseReg ? 'สำเนาทะเบียนบ้านจริงที่ผู้สมัครแนบมา' : 'สำเนาทะเบียนบ้าน (ท.ร.14) ระบุที่อยู่ภูมิลำเนาใน จ.สงขลา'}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => downloadSvgAsPng(houseRegSvg, `สำเนาทะเบียนบ้าน_${safeName}.png`, 1200, 975)}
+                  onClick={() => downloadFileOrSvg(realHouseReg, `สำเนาทะเบียนบ้าน_${safeName}.png`, houseRegSvg, 1200, 975)}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -541,10 +596,20 @@ export default function ApplicationReviewModal({
               </div>
 
               <div className="bg-white rounded-xl shadow-md border border-slate-300 p-4 sm:p-8 flex justify-center">
-                <div 
-                  className="w-full max-w-2xl"
-                  dangerouslySetInnerHTML={{ __html: houseRegSvg }}
-                />
+                {realHouseReg ? (
+                  <div className="flex flex-col items-center gap-3 w-full">
+                    <img 
+                      src={realHouseReg} 
+                      alt="สำเนาทะเบียนบ้านจริง" 
+                      className="max-w-2xl w-full h-auto rounded-xl shadow border border-slate-200 object-contain max-h-[70vh]" 
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="w-full max-w-2xl"
+                    dangerouslySetInnerHTML={{ __html: houseRegSvg }}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -555,11 +620,11 @@ export default function ApplicationReviewModal({
               <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
                 <div className="text-xs text-slate-600 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-teal-500" />
-                  <span><strong>เอกสารที่ 4:</strong> หลักฐานการโอนเงิน ธนาคารกรุงไทย (เลขที่ 9013394310 จำนวน 600.00 บาท)</span>
+                  <span><strong>เอกสารที่ 4:</strong> {realBankSlip ? 'สลิปหลักฐานการโอนเงินจริงที่ผู้สมัครแนบมา' : 'หลักฐานการโอนเงิน ธนาคารกรุงไทย'}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => downloadSvgAsPng(bankSlipSvg, `สลิปโอนเงิน_${safeName}.png`, 900, 1275)}
+                  onClick={() => downloadFileOrSvg(realBankSlip, `สลิปโอนเงิน_${safeName}.png`, bankSlipSvg, 900, 1275)}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -568,10 +633,20 @@ export default function ApplicationReviewModal({
               </div>
 
               <div className="bg-white rounded-xl shadow-md border border-slate-300 p-4 sm:p-8 flex justify-center">
-                <div 
-                  className="w-full max-w-md"
-                  dangerouslySetInnerHTML={{ __html: bankSlipSvg }}
-                />
+                {realBankSlip ? (
+                  <div className="flex flex-col items-center gap-3 w-full">
+                    <img 
+                      src={realBankSlip} 
+                      alt="สลิปโอนเงินจริง" 
+                      className="max-w-md w-full h-auto rounded-xl shadow border border-slate-200 object-contain max-h-[70vh]" 
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="w-full max-w-md"
+                    dangerouslySetInnerHTML={{ __html: bankSlipSvg }}
+                  />
+                )}
               </div>
             </div>
           )}
