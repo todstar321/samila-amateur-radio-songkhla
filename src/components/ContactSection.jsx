@@ -173,7 +173,7 @@ export default function ContactSection({ settings, onOpenLogin, onOpenRegister }
         {/* Association Executive Highlight */}
         <div className="bg-gradient-to-r from-[#012038] via-[#013a63] to-[#012644] text-white rounded-2xl p-6 sm:p-7 border border-cyan-400/40 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-4 text-center md:text-left">
-            <AssociationLogo customUrl={settings.customLogoUrl} className="w-16 h-16 shrink-0 rounded-full ring-2 ring-cyan-300 shadow-md" />
+            <AssociationLogo customUrl={settings.customLogoUrl} className="w-16 h-16 shrink-0 rounded-full shadow-md" />
             <div>
               <h4 className="text-lg font-bold text-white">
                 {settings.associationNameTh}

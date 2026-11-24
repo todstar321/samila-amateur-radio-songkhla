@@ -3005,10 +3005,11 @@ export default function AdminDashboard({
                         onClick={() => logoFileInputRef.current?.click()} 
                         title="คลิกเพื่อเลือกภาพใหม่จากโทรศัพท์/เครื่อง"
                       >
-                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-cyan-400 shadow-xl ring-4 ring-cyan-100/70 overflow-hidden bg-slate-900 flex items-center justify-center p-1 transition-transform group-hover:scale-105">
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full shadow-2xl overflow-hidden bg-slate-900 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
                           <AssociationLogo 
                             customUrl={customLogoInput || settings.customLogoUrl} 
                             className="w-full h-full rounded-full shrink-0" 
+                            clickable={false}
                           />
                         </div>
                         <div className="absolute inset-0 rounded-full bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">

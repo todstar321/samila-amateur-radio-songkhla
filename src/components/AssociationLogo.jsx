@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
-export default function AssociationLogo({ customUrl, className = "w-14 h-14" }) {
+export default function AssociationLogo({ 
+  customUrl, 
+  className = "w-14 h-14",
+  clickable = true,
+  onClick
+}) {
   // If customUrl is provided as a prop, use it directly
   // Otherwise, read from localStorage and listen to real-time changes
   const [activeUrl, setActiveUrl] = useState(() => {
@@ -44,19 +49,44 @@ export default function AssociationLogo({ customUrl, className = "w-14 h-14" }) 
     };
   }, [customUrl]);
 
+  const handleClick = (e) => {
+    if (!clickable) return;
+    if (onClick) {
+      onClick(e);
+      return;
+    }
+    // Prevent default navigation (e.g., if inside an <a> tag) and open lightbox modal
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      window.dispatchEvent(new CustomEvent('samila_open_logo_modal', { detail: { customUrl: activeUrl } }));
+    } catch (err) {}
+  };
+
+  const interactionClasses = clickable 
+    ? "cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200" 
+    : "";
+
+  // 1. Custom Uploaded Logo: pure circular image WITHOUT ANY artificial blue border
   if (activeUrl) {
     return (
       <img
         src={activeUrl}
         alt="ตราสัญลักษณ์สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา"
-        className={`${className} object-cover rounded-full border-2 border-sky-400 shadow-md`}
+        onClick={handleClick}
+        title={clickable ? "คลิกเพื่อดูภาพขยายและบันทึกตราสัญลักษณ์สมาคม" : undefined}
+        className={`${className} ${interactionClasses} object-cover rounded-full shadow-md select-none`}
       />
     );
   }
 
-  // Official Emblem Vector: Radio Tower, Radio Waves, Songkhla Mermaid tail & Sea Waves, Gold & Deep Blue colors
+  // 2. Official Emblem Vector: Radio Tower, Radio Waves, Songkhla Mermaid tail & Sea Waves, Gold & Deep Blue colors
   return (
-    <div className={`${className} relative flex items-center justify-center shrink-0`}>
+    <div 
+      onClick={handleClick}
+      title={clickable ? "คลิกเพื่อดูภาพขยายและบันทึกตราสัญลักษณ์สมาคม" : undefined}
+      className={`${className} ${interactionClasses} relative flex items-center justify-center shrink-0 select-none`}
+    >
       <svg
         viewBox="0 0 120 120"
         className="w-full h-full drop-shadow-md"

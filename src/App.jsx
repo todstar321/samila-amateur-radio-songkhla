@@ -20,6 +20,7 @@ import MemberDirectorySection from './components/MemberDirectorySection';
 import DirectChatModal from './components/DirectChatModal';
 import MessageInboxModal from './components/MessageInboxModal';
 import MemberProfileModal from './components/MemberProfileModal';
+import LogoPreviewModal from './components/LogoPreviewModal';
 import { 
   defaultSettings, 
   defaultSectionThemes,
@@ -448,6 +449,19 @@ export default function App() {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [chatRecipient, setChatRecipient] = useState(null);
   const [isInboxModalOpen, setIsInboxModalOpen] = useState(false);
+
+  // Logo Lightbox / Preview Modal (Triggered by clicking association logo anywhere on the website)
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+  const [modalLogoUrl, setModalLogoUrl] = useState('');
+
+  useEffect(() => {
+    const handleOpenLogo = (e) => {
+      setModalLogoUrl(e?.detail?.customUrl || settings.customLogoUrl || '');
+      setIsLogoModalOpen(true);
+    };
+    window.addEventListener('samila_open_logo_modal', handleOpenLogo);
+    return () => window.removeEventListener('samila_open_logo_modal', handleOpenLogo);
+  }, [settings.customLogoUrl]);
 
   // Profile Modal for viewing member details (เมื่อนึกไม่ออกว่าใคร)
   const [profileMember, setProfileMember] = useState(null);
@@ -1013,6 +1027,14 @@ export default function App() {
         onOpenDeModal={() => setIsDeModalOpen(true)}
         onOpenReceipt={handleOpenReceiptModal}
         onOpenCertificate={(targetMem) => handleOpenCertificate(targetMem || currentUser)}
+      />
+
+      {/* Association Logo Lightbox Preview & Download Modal */}
+      <LogoPreviewModal
+        isOpen={isLogoModalOpen}
+        onClose={() => setIsLogoModalOpen(false)}
+        logoUrl={modalLogoUrl || settings.customLogoUrl}
+        settings={settings}
       />
 
       {/* Modal แจ้งเตือนสถานะรออนุมัติหนังสือรับรอง สำหรับสมาชิกใหม่หรือยังไม่ได้รับการอนุมัติ */}

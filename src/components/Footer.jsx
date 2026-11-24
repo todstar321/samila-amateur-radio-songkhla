@@ -43,7 +43,7 @@ export default function Footer({ settings, onOpenLogin, onOpenRegister }) {
       <div className="relative z-10 border-b border-cyan-500/30 bg-gradient-to-r from-[#013554]/90 via-[#01497c]/90 to-[#012a4a]/90 py-8 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4 text-center md:text-left">
-            <AssociationLogo customUrl={settings.customLogoUrl} className="w-16 h-16 shrink-0 shadow-lg ring-2 ring-cyan-400/40 rounded-full" />
+            <AssociationLogo customUrl={settings.customLogoUrl} className="w-16 h-16 shrink-0 shadow-lg rounded-full" />
             <div>
               <h3 className="text-white font-bold text-lg leading-snug drop-shadow-sm">
                 {settings.associationNameTh}

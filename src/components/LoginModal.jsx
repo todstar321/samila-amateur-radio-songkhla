@@ -96,7 +96,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
           </button>
 
           <div className="flex items-center gap-3">
-            <AssociationLogo customUrl={settings?.customLogoUrl} className="w-11 h-11 rounded-full border border-sky-400/40" />
+            <AssociationLogo customUrl={settings?.customLogoUrl} className="w-11 h-11 rounded-full shadow-sm" />
             <div>
               <h3 className="font-bold text-base text-white">เข้าสู่ระบบสมาชิก</h3>
               <p className="text-xs text-sky-200">สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา</p>
