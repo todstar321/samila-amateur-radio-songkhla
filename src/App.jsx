@@ -31,6 +31,7 @@ import {
 } from './data/mockData';
 import { fetchCentralMembers, saveNewMemberToCentral, syncMembersToCentral } from './utils/memberSyncUtils';
 import { fetchCentralLayoutSettings } from './utils/layoutSyncUtils';
+import { fetchCentralSettings, syncSettingsToCentral } from './utils/settingsSyncUtils';
 import { CheckCircle, Sliders, Edit3, Clock, AlertTriangle } from 'lucide-react';
 
 export default function App() {
@@ -239,12 +240,50 @@ export default function App() {
     }
   });
 
-  // Central Cloud Members Sync across PC, Mobile, and Tablet (Single Source of Truth with auto-poll & focus sync)
+  // Central Cloud Members & Settings Sync across PC, Mobile, and Tablet (Single Source of Truth with auto-poll & focus sync)
   useEffect(() => {
     let isMounted = true;
 
     const syncCloud = () => {
+      // 1. Sync Document Studio layout coordinates
       fetchCentralLayoutSettings().catch(() => {});
+
+      // 2. Sync App Settings (Custom Logo, Themes, Hero Background, President details, etc.)
+      fetchCentralSettings().then(cloudSettings => {
+        if (!isMounted || !cloudSettings || typeof cloudSettings !== 'object') return;
+        setSettings(prev => {
+          const prevLogo = prev?.customLogoUrl || '';
+          const cloudLogo = cloudSettings?.customLogoUrl || '';
+          const prevVersion = prev?.version || 0;
+          const cloudVersion = cloudSettings?.version || 0;
+          const prevUpdatedAt = prev?.updatedAt || prev?.meta?.savedAt || '';
+          const cloudUpdatedAt = cloudSettings?.updatedAt || cloudSettings?.meta?.savedAt || '';
+
+          if (prevLogo !== cloudLogo || prevVersion !== cloudVersion || (cloudUpdatedAt && cloudUpdatedAt !== prevUpdatedAt)) {
+            return {
+              ...prev,
+              ...cloudSettings,
+              sectionThemes: {
+                ...defaultSectionThemes,
+                ...(prev.sectionThemes || {}),
+                ...(cloudSettings.sectionThemes || {}),
+                hero: {
+                  ...defaultSectionThemes.hero,
+                  ...(prev.sectionThemes?.hero || {}),
+                  ...(cloudSettings.sectionThemes?.hero || {}),
+                  bgUrl: (cloudSettings.sectionThemes?.hero?.bgUrl && cloudSettings.sectionThemes.hero.bgUrl.trim()) || cloudSettings.heroBgUrl || prev.heroBgUrl || defaultSectionThemes.hero.bgUrl,
+                  opacity: typeof cloudSettings.sectionThemes?.hero?.opacity === 'number' 
+                    ? Math.max(cloudSettings.sectionThemes.hero.opacity, 75) 
+                    : (prev.sectionThemes?.hero?.opacity || 85)
+                }
+              }
+            };
+          }
+          return prev;
+        });
+      }).catch(() => {});
+
+      // 3. Sync Central Members List
       fetchCentralMembers().then(cloudMembers => {
         if (!isMounted || !Array.isArray(cloudMembers) || cloudMembers.length === 0) return;
         setMembersList(prev => {
@@ -282,14 +321,34 @@ export default function App() {
       }).catch(() => {});
     };
 
+    // Instant initial sync
     syncCloud();
     const interval = setInterval(syncCloud, 15000); // 15 seconds auto-poll
     window.addEventListener('focus', syncCloud);
+
+    // Cross-tab and in-memory event listeners for instant zero-lag updates
+    const handleSettingsEvent = (e) => {
+      if (e?.detail) {
+        setSettings(prev => ({ ...prev, ...e.detail }));
+      }
+    };
+    const handleStorageEvent = (e) => {
+      if (e.key === 'samila_radio_settings' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setSettings(prev => ({ ...prev, ...parsed }));
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('samila_settings_changed', handleSettingsEvent);
+    window.addEventListener('storage', handleStorageEvent);
 
     return () => { 
       isMounted = false; 
       clearInterval(interval);
       window.removeEventListener('focus', syncCloud);
+      window.removeEventListener('samila_settings_changed', handleSettingsEvent);
+      window.removeEventListener('storage', handleStorageEvent);
     };
   }, []);
 
@@ -532,7 +591,7 @@ export default function App() {
     showToast("ออกจากระบบเรียบร้อยแล้ว");
   };
 
-  // Save admin customizations
+  // Save admin customizations & sync to Cloudinary raw storage (Real-time cross-device)
   const handleSaveSettings = (newSettings) => {
     setSettings(newSettings);
     try {
@@ -540,7 +599,15 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    showToast("บันทึกการตั้งค่าเรียบร้อยแล้ว");
+    // Broadcast immediately and upload to central cloud storage
+    syncSettingsToCentral(newSettings, currentUser, '5532').then((success) => {
+      if (success) {
+        console.log('[Central Settings] Synced to Cloudinary raw CDN successfully');
+      }
+    }).catch(err => {
+      console.warn('[Central Settings] Sync error:', err);
+    });
+    showToast("บันทึกการตั้งค่าสู่ระบบกลางสำเร็จ ทุกอุปกรณ์จะอัปเดตตรงกันทันที");
   };
 
   // Update members list
@@ -828,6 +895,7 @@ export default function App() {
       {/* Modals */}
       <LoginModal
         isOpen={isLoginOpen}
+        settings={settings}
         onClose={() => setIsLoginOpen(false)}
         onLoginSuccess={handleLoginSuccess}
         onOpenRegister={() => {

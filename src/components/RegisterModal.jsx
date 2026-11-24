@@ -516,7 +516,7 @@ export default function RegisterModal({
           </button>
 
           <div className="flex items-center gap-3">
-            <AssociationLogo className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-sky-400/40 shrink-0 shadow-md" />
+            <AssociationLogo customUrl={defaultSettings?.customLogoUrl} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full border-2 border-sky-400/40 shrink-0 shadow-md" />
             <div className="min-w-0 pr-8">
               <h3 className="font-bold text-sm sm:text-base text-white leading-tight truncate">
                 ใบสมัครสมาชิกสมาคมวิทยุสมัครเล่นสมิหลา จังหวัดสงขลา

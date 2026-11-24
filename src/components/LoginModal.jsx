@@ -4,7 +4,7 @@ import AssociationLogo from './AssociationLogo';
 import DeveloperCredit from './DeveloperCredit';
 import { demoAccounts } from '../data/mockData';
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegister }) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegister, settings }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -96,7 +96,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
           </button>
 
           <div className="flex items-center gap-3">
-            <AssociationLogo className="w-11 h-11 rounded-full border border-sky-400/40" />
+            <AssociationLogo customUrl={settings?.customLogoUrl} className="w-11 h-11 rounded-full border border-sky-400/40" />
             <div>
               <h3 className="font-bold text-base text-white">เข้าสู่ระบบสมาชิก</h3>
               <p className="text-xs text-sky-200">สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา</p>

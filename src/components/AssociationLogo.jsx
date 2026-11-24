@@ -1,10 +1,53 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function AssociationLogo({ customUrl, className = "w-14 h-14" }) {
-  if (customUrl) {
+  // If customUrl is provided as a prop, use it directly
+  // Otherwise, read from localStorage and listen to real-time changes
+  const [activeUrl, setActiveUrl] = useState(() => {
+    if (customUrl !== undefined) return customUrl;
+    try {
+      const saved = localStorage.getItem('samila_radio_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.customLogoUrl || '';
+      }
+    } catch (e) {}
+    return '';
+  });
+
+  useEffect(() => {
+    if (customUrl !== undefined) {
+      setActiveUrl(customUrl);
+      return;
+    }
+
+    const handleSettingsChange = (e) => {
+      if (e?.detail?.customLogoUrl !== undefined) {
+        setActiveUrl(e.detail.customLogoUrl || '');
+      }
+    };
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'samila_radio_settings' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          setActiveUrl(parsed.customLogoUrl || '');
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('samila_settings_changed', handleSettingsChange);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('samila_settings_changed', handleSettingsChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [customUrl]);
+
+  if (activeUrl) {
     return (
       <img
-        src={customUrl}
+        src={activeUrl}
         alt="ตราสัญลักษณ์สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา"
         className={`${className} object-cover rounded-full border-2 border-sky-400 shadow-md`}
       />
