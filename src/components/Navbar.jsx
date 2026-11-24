@@ -54,8 +54,8 @@ export default function Navbar({
 
   return (
     <header className="sticky top-0 z-40 w-full shadow-2xl">
-      {/* TIER 1: Main Brand Bar (โทนฟ้าน้ำทะเลตัดน้ำเงิน มีลวดลายคลื่นและเส้นตัดชัดเจน - z-30 ให้เมนูลอยเหนือแถบนำทาง) */}
-      <div className="bg-gradient-to-r from-[#012a4a] via-[#01497c] to-[#013a63] text-white border-b border-cyan-400/50 py-3 sm:py-3.5 px-4 sm:px-6 lg:px-8 relative z-30 shadow-[0_4px_25px_rgba(0,180,216,0.22)]">
+      {/* TIER 1: Main Brand Bar (ขยายระยะห่างด้านบนเพิ่มเท่าตัวเพื่อรองรับ Notch / Dynamic Island / ลำโพงมือถือเมื่อบันทึกลงหน้าจอเดสก์ท็อป) */}
+      <div className="bg-gradient-to-r from-[#012a4a] via-[#01497c] to-[#013a63] text-white border-b border-cyan-400/50 pt-[max(calc(env(safe-area-inset-top,0px)+18px),54px)] pb-3.5 sm:pt-[max(calc(env(safe-area-inset-top,0px)+12px),22px)] sm:pb-3.5 px-4 sm:px-6 lg:px-8 relative z-30 shadow-[0_4px_25px_rgba(0,180,216,0.22)]">
         {/* Subtle Wave Sheen & Light Reflections (overflow-hidden เฉพาะเลเยอร์กราฟิกพื้นหลัง ไม่ตัด dropdown) */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1.5px,transparent_1.5px)] [background-size:20px_20px]" />

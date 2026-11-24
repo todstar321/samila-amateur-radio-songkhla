@@ -81,7 +81,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, onOpenRegi
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 pt-[max(calc(env(safe-area-inset-top,0px)+12px),24px)] pb-4">
       <div 
         className="relative bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}

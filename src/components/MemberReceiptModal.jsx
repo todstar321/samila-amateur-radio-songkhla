@@ -283,7 +283,7 @@ export default function MemberReceiptModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:fixed print:inset-0 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 pt-[max(calc(env(safe-area-inset-top,0px)+12px),24px)] pb-4 print:p-0 print:bg-white print:fixed print:inset-0 animate-in fade-in duration-200">
       
       {/* Container */}
       <div 

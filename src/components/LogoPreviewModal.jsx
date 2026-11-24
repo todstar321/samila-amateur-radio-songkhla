@@ -100,7 +100,7 @@ export default function LogoPreviewModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[150] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[150] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 pt-[max(calc(env(safe-area-inset-top,0px)+16px),24px)] pb-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 

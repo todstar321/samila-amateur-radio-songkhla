@@ -36,7 +36,7 @@ export default function MemberProfileModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 pt-[max(calc(env(safe-area-inset-top,0px)+12px),24px)] pb-4 animate-in fade-in duration-150">
       <div 
         className="relative bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-cyan-400/80 overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}

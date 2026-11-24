@@ -126,7 +126,7 @@ export default function CertificateModal({ isOpen, onClose, member, settings }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:fixed print:inset-0">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 pt-[max(calc(env(safe-area-inset-top,0px)+12px),24px)] pb-4 print:p-0 print:bg-white print:fixed print:inset-0">
       
       {/* Container */}
       <div 

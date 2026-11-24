@@ -772,8 +772,8 @@ export default function AdminDashboard({
   return (
     <div className="min-h-screen bg-[#fafafa] text-slate-800 flex flex-col md:flex-row font-sans selection:bg-slate-900 selection:text-white">
       
-      {/* ================= MOBILE APP BAR (เฉพาะจอมือถือ < md) ================= */}
-      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      {/* ================= MOBILE APP BAR (เฉพาะจอมือถือ < md - ขยายระยะห่างด้านบนเพื่อหลบรอยบาก Notch & Dynamic Island) ================= */}
+      <div className="md:hidden bg-white border-b border-slate-200 px-4 pt-[max(calc(env(safe-area-inset-top,0px)+16px),50px)] pb-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
         <div className="flex items-center gap-2.5 min-w-0">
           <AssociationLogo customUrl={settings.customLogoUrl} className="w-8 h-8 rounded-full shrink-0 shadow-xs" />
           <div className="min-w-0">
@@ -817,7 +817,7 @@ export default function AdminDashboard({
           <div className="relative w-[85%] max-w-xs bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
             
             {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/90">
+            <div className="px-4 pt-[max(calc(env(safe-area-inset-top,0px)+16px),48px)] pb-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/90">
               <div className="flex items-center gap-2.5">
                 <AssociationLogo customUrl={settings.customLogoUrl} className="w-7 h-7 rounded-full shrink-0" />
                 <div>
