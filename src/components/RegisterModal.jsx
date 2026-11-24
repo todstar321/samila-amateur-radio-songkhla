@@ -80,14 +80,18 @@ export default function RegisterModal({
   const [sameAsCurrent, setSameAsCurrent] = useState(true);
   const [registeredAddress, setRegisteredAddress] = useState('');
 
-  // Step 4: Document Uploads (Simulated preview)
+  // Step 4: Document Uploads (Simulated preview & local base64 data url for Telegram)
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState(null);
   const [idCardPreview, setIdCardPreview] = useState(null);
+  const [idCardDataUrl, setIdCardDataUrl] = useState(null);
   const [houseRegPreview, setHouseRegPreview] = useState(null);
+  const [houseRegDataUrl, setHouseRegDataUrl] = useState(null);
 
   // Step 5: Membership Type & Payment
   const [membershipType, setMembershipType] = useState('3'); // 3 = สมาชิกสามัญ 5 ปี
   const [slipPreview, setSlipPreview] = useState(null);
+  const [slipDataUrl, setSlipDataUrl] = useState(null);
 
   // Copy Bank Account
   const [copiedBank, setCopiedBank] = useState(false);
@@ -144,13 +148,15 @@ export default function RegisterModal({
   };
 
   // Handle Photo Upload with immediate base64 data preview and background Cloudinary upload
-  const handleFileChange = async (e, setter) => {
+  const handleFileChange = async (e, setter, dataUrlSetter) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 1. Immediate Base64 Data URL for zero-CORS local rendering and instant display
+      // 1. Immediate Base64 Data URL for zero-CORS local rendering and instant Telegram sending
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
-        setter(uploadEvent.target.result);
+        const result = uploadEvent.target.result;
+        setter(result);
+        if (dataUrlSetter) dataUrlSetter(result);
       };
       reader.readAsDataURL(file);
 
@@ -405,9 +411,13 @@ export default function RegisterModal({
         isSuperAdmin: false,
         status: 'รอตรวจสอบ',
         avatar: finalAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+        avatarDataUrl: photoDataUrl || (photoPreview && photoPreview.startsWith('data:') ? photoPreview : null),
         idCardSlip: finalIdCard,
+        idCardDataUrl: idCardDataUrl || (idCardPreview && idCardPreview.startsWith('data:') ? idCardPreview : null),
         houseSlip: finalHouseReg,
+        houseDataUrl: houseRegDataUrl || (houseRegPreview && houseRegPreview.startsWith('data:') ? houseRegPreview : null),
         transferSlip: finalSlip,
+        slipDataUrl: slipDataUrl || (slipPreview && slipPreview.startsWith('data:') ? slipPreview : null),
         registeredDate: `${new Date().getDate()} พ.ย. ${currentYearBe}`,
         expiryAlert: 'ปกติ'
       };
@@ -1067,7 +1077,7 @@ export default function RegisterModal({
 
                         <label className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-medium text-slate-700 cursor-pointer shadow-2xs">
                           <span>{photoPreview ? 'เปลี่ยนรูป' : 'เลือกรูปถ่าย'}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setPhotoPreview)} />
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setPhotoPreview, setPhotoDataUrl)} />
                         </label>
                       </div>
 
@@ -1093,7 +1103,7 @@ export default function RegisterModal({
 
                         <label className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-medium text-slate-700 cursor-pointer shadow-2xs">
                           <span>{idCardPreview ? 'เปลี่ยนไฟล์' : 'แนบสำเนาบัตร'}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setIdCardPreview)} />
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setIdCardPreview, setIdCardDataUrl)} />
                         </label>
                       </div>
 
@@ -1119,7 +1129,7 @@ export default function RegisterModal({
 
                         <label className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-medium text-slate-700 cursor-pointer shadow-2xs">
                           <span>{houseRegPreview ? 'เปลี่ยนไฟล์' : 'แนบทะเบียนบ้าน'}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setHouseRegPreview)} />
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setHouseRegPreview, setHouseRegDataUrl)} />
                         </label>
                       </div>
                     </div>
@@ -1275,7 +1285,7 @@ export default function RegisterModal({
                               </div>
                               <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 rounded-xl text-xs font-semibold cursor-pointer transition shadow-2xs shrink-0">
                                 <span>เปลี่ยนภาพสลิป</span>
-                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview)} />
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview, setSlipDataUrl)} />
                               </label>
                             </div>
                           ) : (
@@ -1289,7 +1299,7 @@ export default function RegisterModal({
                               <p className="text-[10px] text-slate-500 mt-0.5">
                                 รองรับไฟล์รูปภาพ JPG, PNG, ถ่ายรูปจากมือถือ หรือภาพถ่ายใบเสร็จ
                               </p>
-                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview)} />
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setSlipPreview, setSlipDataUrl)} />
                             </label>
                           )}
                         </div>

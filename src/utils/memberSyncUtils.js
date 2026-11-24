@@ -49,10 +49,12 @@ export async function saveNewMemberToCentral(newMember) {
   if (!newMember) return false;
 
   try {
+    // Strip large transient data URLs so payload stays lightweight
+    const { avatarDataUrl, idCardDataUrl, houseDataUrl, slipDataUrl, ...cleanMember } = newMember;
     const res = await fetch('/api/members', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add', member: newMember })
+      body: JSON.stringify({ action: 'add', member: cleanMember })
     });
     if (res.ok) {
       const data = await res.json();

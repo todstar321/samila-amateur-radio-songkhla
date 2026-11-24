@@ -151,97 +151,152 @@ export async function ensureDataUrl(urlOrBlob) {
 }
 
 /**
+ * Create a valid JPEG blob from default template to guarantee binary safety
+ */
+function createMinimalJpegBlob() {
+  try {
+    const b64 = DEFAULT_RECEIPT_TEMPLATE_BASE64.split(',')[1];
+    const bstr = atob(b64);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new Blob([u8arr], { type: 'image/jpeg' });
+  } catch {
+    return new Blob([], { type: 'image/jpeg' });
+  }
+}
+
+/**
+ * Draw emergency canvas fallback card in case SVG rasterization fails
+ */
+function drawFallbackCanvas(ctx, width, height, title = '') {
+  try {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(20, 20, width - 40, height - 40);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('สมาคมวิทยุสมัครเล่นสมิหลาจังหวัดสงขลา (HS9AS)', width / 2, 75);
+    if (title) {
+      ctx.font = '20px sans-serif';
+      ctx.fillStyle = '#0369a1';
+      ctx.fillText(title, width / 2, 120);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+/**
  * Rasterize SVG string to high-res JPEG/PNG Blob using offscreen canvas
  */
 export function svgToPngBlob(svgString, width = 1200, height = 1695, format = 'image/jpeg') {
   return new Promise((resolve) => {
-    try {
-      if (typeof window === 'undefined' || !window.document) {
-        return resolve(new Blob([svgString], { type: format }));
+    let resolved = false;
+    const safeResolve = (blob) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(blob || createMinimalJpegBlob());
       }
+    };
 
-      let cleanSvg = svgString;
-      if (!cleanSvg.includes('xmlns:xlink')) {
-        cleanSvg = cleanSvg.replace('<svg ', '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
-      }
-      cleanSvg = cleanSvg.replace(/<image\s+href="([^"]+)"(?!\s+xlink:href)/g, '<image href="$1" xlink:href="$1"');
+    if (typeof window === 'undefined' || !window.document) {
+      return safeResolve(createMinimalJpegBlob());
+    }
 
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
 
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
+    // Timeout safety net (3500ms): if rendering hangs or font loading takes too long, render canvas fallback
+    const timer = setTimeout(() => {
+      console.warn('[svgToPngBlob] Render timed out, generating fallback JPEG');
+      drawFallbackCanvas(ctx, width, height);
+      canvas.toBlob((b) => safeResolve(b), format, 0.92);
+    }, 3500);
 
-      const renderCanvas = () => {
-        try {
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob((blob) => {
-            if (blob && !blob.type.includes('svg')) {
-              resolve(blob);
-            } else {
-              try {
-                const dataUrl = canvas.toDataURL(format, 0.92);
-                const bstr = atob(dataUrl.split(',')[1]);
-                let n = bstr.length;
-                const u8arr = new Uint8Array(n);
-                while (n--) u8arr[n] = bstr.charCodeAt(n);
-                resolve(new Blob([u8arr], { type: format }));
-              } catch (e2) {
-                resolve(new Blob([cleanSvg], { type: format }));
-              }
-            }
-          }, format, 0.92);
-        } catch (err) {
-          console.warn('[svgToPngBlob] drawImage error:', err);
-          resolve(new Blob([cleanSvg], { type: format }));
-        }
-      };
+    let cleanSvg = svgString;
+    if (!cleanSvg.includes('xmlns:xlink')) {
+      cleanSvg = cleanSvg.replace('<svg ', '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
+    }
+    cleanSvg = cleanSvg.replace(/<image\s+href="([^"]+)"(?!\s+xlink:href)/g, '<image href="$1" xlink:href="$1"');
 
-      img.onload = renderCanvas;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
 
-      // Data URL format with encodeURIComponent is 100% supported in Safari & Chrome for SVGs
-      let dataUrl;
+    const renderCanvas = () => {
+      clearTimeout(timer);
       try {
-        dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cleanSvg);
-      } catch (e) {
-        dataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(cleanSvg)));
-      }
-
-      img.onerror = (e) => {
-        console.warn('[svgToPngBlob] Data URL error, trying Blob URL fallback:', e);
-        try {
-          const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
-          const URL = window.URL || window.webkitURL || window;
-          const blobURL = URL.createObjectURL(svgBlob);
-          const fbImg = new Image();
-          fbImg.crossOrigin = 'anonymous';
-          fbImg.onload = () => {
-            URL.revokeObjectURL(blobURL);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob && !blob.type.includes('svg')) {
+            safeResolve(blob);
+          } else {
             try {
-              ctx.drawImage(fbImg, 0, 0, width, height);
-              canvas.toBlob((b) => resolve(b || new Blob([cleanSvg], { type: format })), format, 0.92);
-            } catch {
-              resolve(new Blob([cleanSvg], { type: format }));
+              const dataUrl = canvas.toDataURL(format, 0.92);
+              const bstr = atob(dataUrl.split(',')[1]);
+              let n = bstr.length;
+              const u8arr = new Uint8Array(n);
+              while (n--) u8arr[n] = bstr.charCodeAt(n);
+              safeResolve(new Blob([u8arr], { type: format }));
+            } catch (e2) {
+              drawFallbackCanvas(ctx, width, height);
+              canvas.toBlob((b) => safeResolve(b), format, 0.92);
             }
-          };
-          fbImg.onerror = () => {
-            URL.revokeObjectURL(blobURL);
-            resolve(new Blob([cleanSvg], { type: format }));
-          };
-          fbImg.src = blobURL;
-        } catch {
-          resolve(new Blob([cleanSvg], { type: format }));
-        }
-      };
+          }
+        }, format, 0.92);
+      } catch (err) {
+        console.warn('[svgToPngBlob] drawImage error:', err);
+        drawFallbackCanvas(ctx, width, height);
+        canvas.toBlob((b) => safeResolve(b), format, 0.92);
+      }
+    };
 
-      img.src = dataUrl;
-    } catch (err) {
-      console.error('[svgToPngBlob] setup error:', err);
-      resolve(new Blob([svgString], { type: format }));
+    img.onload = renderCanvas;
+
+    img.onerror = (e) => {
+      console.warn('[svgToPngBlob] Data URL error, trying Blob URL fallback:', e);
+      try {
+        const svgBlob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+        const fbImg = new Image();
+        fbImg.crossOrigin = 'anonymous';
+        fbImg.onload = () => {
+          clearTimeout(timer);
+          URL.revokeObjectURL(blobURL);
+          try {
+            ctx.drawImage(fbImg, 0, 0, width, height);
+            canvas.toBlob((b) => safeResolve(b), format, 0.92);
+          } catch {
+            drawFallbackCanvas(ctx, width, height);
+            canvas.toBlob((b) => safeResolve(b), format, 0.92);
+          }
+        };
+        fbImg.onerror = () => {
+          clearTimeout(timer);
+          URL.revokeObjectURL(blobURL);
+          drawFallbackCanvas(ctx, width, height);
+          canvas.toBlob((b) => safeResolve(b), format, 0.92);
+        };
+        fbImg.src = blobURL;
+      } catch {
+        clearTimeout(timer);
+        drawFallbackCanvas(ctx, width, height);
+        canvas.toBlob((b) => safeResolve(b), format, 0.92);
+      }
+    };
+
+    try {
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cleanSvg);
+    } catch (e) {
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(cleanSvg)));
     }
   });
 }
@@ -312,6 +367,14 @@ async function sendTelegramRequest(endpoint, payload, isFormData = false, custom
 
   try {
     let result = await doFetch(primaryChatId);
+
+    // If rate limited by Telegram (HTTP 429 Too Many Requests), wait specified duration and retry once!
+    if (!result.ok && result.error_code === 429) {
+      const retryAfter = (result.parameters?.retry_after || 2) * 1000 + 500;
+      console.warn(`[Telegram API] Rate limited (429). Retrying after ${retryAfter}ms...`);
+      await new Promise(r => setTimeout(r, retryAfter));
+      result = await doFetch(primaryChatId);
+    }
 
     // If failed due to chat id mismatch, try alternate ID
     if (!result.ok && (result.description?.includes('chat not found') || result.description?.includes('upgraded to a supergroup'))) {
@@ -406,14 +469,32 @@ export async function sendTelegramPhoto(photoOrBlob, caption = '', options = {})
   const rawFilename = options.filename || 'photo.jpg';
   const cleanFilename = rawFilename.replace(/\.png$/i, '.jpg').replace(/\.svg$/i, '.jpg');
 
-  // Send as binary FormData directly to Telegram sendPhoto (NEVER sendDocument for photos!)
+  // Send as binary FormData directly to Telegram sendPhoto
   const formData = new FormData();
   formData.append('photo', blob, cleanFilename);
   if (caption) {
     formData.append('caption', caption);
     formData.append('parse_mode', options.parse_mode || 'HTML');
   }
-  const res = await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
+  let res = await sendTelegramRequest('sendPhoto', formData, true, options.botToken, options.chatId);
+
+  // Fallback: If sendPhoto failed (e.g. image rejected or processing issue), fallback to sendDocument
+  if (!res.ok) {
+    console.warn(`[Telegram sendPhoto] Failed (${res.description}), attempting fallback to sendDocument...`);
+    try {
+      const docFormData = new FormData();
+      docFormData.append('document', blob, cleanFilename);
+      if (caption) {
+        docFormData.append('caption', caption);
+        docFormData.append('parse_mode', options.parse_mode || 'HTML');
+      }
+      const docRes = await sendTelegramRequest('sendDocument', docFormData, true, options.botToken, options.chatId);
+      if (docRes.ok) return docRes;
+    } catch (docErr) {
+      console.warn('[Telegram sendDocument fallback failed]:', docErr);
+    }
+  }
+
   return res;
 }
 
@@ -668,18 +749,19 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
 
   // 3.1 Photo Avatar (1-2 inch)
   let avatarBlob = null;
-  if (m.avatar) {
-    if (typeof m.avatar === 'string' && (m.avatar.startsWith('data:') || m.avatar.startsWith('blob:'))) {
-      avatarBlob = await dataUrlToBlob(m.avatar);
-    } else if (typeof m.avatar === 'string' && m.avatar.startsWith('http')) {
+  const rawAvatar = m.avatarDataUrl || m.avatar;
+  if (rawAvatar) {
+    if (typeof rawAvatar === 'string' && (rawAvatar.startsWith('data:') || rawAvatar.startsWith('blob:'))) {
+      avatarBlob = await dataUrlToBlob(rawAvatar);
+    } else if (typeof rawAvatar === 'string' && rawAvatar.startsWith('http')) {
       try {
-        const resp = await fetch(m.avatar);
+        const resp = await fetch(rawAvatar);
         if (resp.ok) avatarBlob = await resp.blob();
       } catch (err) {
         console.warn('Avatar remote fetch error:', err);
       }
-    } else if (m.avatar instanceof Blob) {
-      avatarBlob = m.avatar;
+    } else if (rawAvatar instanceof Blob) {
+      avatarBlob = rawAvatar;
     }
   }
   if (!avatarBlob) {
@@ -694,24 +776,25 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: avatarBlob,
       filename: `03_รูปถ่าย_${m.fullName}.jpg`,
-      caption: `👤 <b>รูปถ่ายหน้าตรง 1-2 นิ้ว</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}`
+      caption: `👤 <b>03_รูปถ่ายหน้าตรง 1-2 นิ้ว</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• นามเรียกขาน: ${escapeHtml(m.callsign && m.callsign !== '-' ? m.callsign : 'ขอรับใหม่')}`
     });
   }
 
   // 3.2 Citizen ID Card Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
   let idCardBlob = null;
-  if (m.idCardSlip) {
-    if (typeof m.idCardSlip === 'string' && (m.idCardSlip.startsWith('data:') || m.idCardSlip.startsWith('blob:'))) {
-      idCardBlob = await dataUrlToBlob(m.idCardSlip);
-    } else if (typeof m.idCardSlip === 'string' && m.idCardSlip.startsWith('http')) {
+  const rawIdCard = m.idCardDataUrl || m.idCardSlip;
+  if (rawIdCard) {
+    if (typeof rawIdCard === 'string' && (rawIdCard.startsWith('data:') || rawIdCard.startsWith('blob:'))) {
+      idCardBlob = await dataUrlToBlob(rawIdCard);
+    } else if (typeof rawIdCard === 'string' && rawIdCard.startsWith('http')) {
       try {
-        const resp = await fetch(m.idCardSlip);
+        const resp = await fetch(rawIdCard);
         if (resp.ok) idCardBlob = await resp.blob();
       } catch (err) {
         console.warn('ID Card remote fetch error:', err);
       }
-    } else if (m.idCardSlip instanceof Blob) {
-      idCardBlob = m.idCardSlip;
+    } else if (rawIdCard instanceof Blob) {
+      idCardBlob = rawIdCard;
     }
   }
   if (!idCardBlob) {
@@ -726,24 +809,25 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: idCardBlob,
       filename: `04_สำเนาบัตรประชาชน_${m.fullName}.jpg`,
-      caption: `🪪 <b>สำเนาบัตรประจำตัวประชาชน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• เลขประจำตัวประชาชน: <code>${escapeHtml(m.citizenId || '-')}</code>`
+      caption: `🪪 <b>04_สำเนาบัตรประจำตัวประชาชน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• เลขประจำตัวประชาชน: <code>${escapeHtml(m.citizenId || '-')}</code>`
     });
   }
 
   // 3.3 House Registration Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
   let houseBlob = null;
-  if (m.houseSlip) {
-    if (typeof m.houseSlip === 'string' && (m.houseSlip.startsWith('data:') || m.houseSlip.startsWith('blob:'))) {
-      houseBlob = await dataUrlToBlob(m.houseSlip);
-    } else if (typeof m.houseSlip === 'string' && m.houseSlip.startsWith('http')) {
+  const rawHouse = m.houseDataUrl || m.houseSlip;
+  if (rawHouse) {
+    if (typeof rawHouse === 'string' && (rawHouse.startsWith('data:') || rawHouse.startsWith('blob:'))) {
+      houseBlob = await dataUrlToBlob(rawHouse);
+    } else if (typeof rawHouse === 'string' && rawHouse.startsWith('http')) {
       try {
-        const resp = await fetch(m.houseSlip);
+        const resp = await fetch(rawHouse);
         if (resp.ok) houseBlob = await resp.blob();
       } catch (err) {
         console.warn('House reg remote fetch error:', err);
       }
-    } else if (m.houseSlip instanceof Blob) {
-      houseBlob = m.houseSlip;
+    } else if (rawHouse instanceof Blob) {
+      houseBlob = rawHouse;
     }
   }
   if (!houseBlob) {
@@ -758,24 +842,25 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: houseBlob,
       filename: `05_สำเนาทะเบียนบ้าน_${m.fullName}.jpg`,
-      caption: `🏠 <b>สำเนาทะเบียนบ้าน (ท.ร.14)</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ที่อยู่: ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}`
+      caption: `🏠 <b>05_สำเนาทะเบียนบ้าน (ท.ร.14)</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ที่อยู่: ${escapeHtml(m.registeredAddress || m.currentAddress || '-')}`
     });
   }
 
   // 3.4 Bank Transfer Slip (ดึงข้อมูลจริง หรือใช้ SVG จำลอง)
   let transferBlob = null;
-  if (m.transferSlip) {
-    if (typeof m.transferSlip === 'string' && (m.transferSlip.startsWith('data:') || m.transferSlip.startsWith('blob:'))) {
-      transferBlob = await dataUrlToBlob(m.transferSlip);
-    } else if (typeof m.transferSlip === 'string' && m.transferSlip.startsWith('http')) {
+  const rawSlip = m.slipDataUrl || m.transferSlip;
+  if (rawSlip) {
+    if (typeof rawSlip === 'string' && (rawSlip.startsWith('data:') || rawSlip.startsWith('blob:'))) {
+      transferBlob = await dataUrlToBlob(rawSlip);
+    } else if (typeof rawSlip === 'string' && rawSlip.startsWith('http')) {
       try {
-        const resp = await fetch(m.transferSlip);
+        const resp = await fetch(rawSlip);
         if (resp.ok) transferBlob = await resp.blob();
       } catch (err) {
         console.warn('Bank slip remote fetch error:', err);
       }
-    } else if (m.transferSlip instanceof Blob) {
-      transferBlob = m.transferSlip;
+    } else if (rawSlip instanceof Blob) {
+      transferBlob = rawSlip;
     }
   }
   if (!transferBlob) {
@@ -790,25 +875,32 @@ export async function sendNewApplicationToTelegram(memberData, customConfig = nu
     evidenceList.push({
       blob: transferBlob,
       filename: `06_สลิปโอนเงิน_${m.fullName}.jpg`,
-      caption: `💸 <b>สลิปหลักฐานการโอนเงิน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ยอดเงินโอน: ${escapeHtml(feeText)}`
+      caption: `💸 <b>06_สลิปหลักฐานการโอนเงิน</b>\n• ผู้สมัครสมาชิก: ${escapeHtml(m.fullName)}\n• ยอดเงินโอน: ${escapeHtml(feeText)}`
     });
   }
 
-  // Send all documents as distinct individual photos with dedicated captions (ไม่จัดเป็นอัลบั้มรวมตามที่ผู้ใช้ต้องการ)
+  // Send all documents as distinct individual photos with dedicated captions (ลำดับ 01 ถึง 06 ครบถ้วน)
   const allPhotosToSend = [...officialDocsList, ...evidenceList];
-  for (const item of allPhotosToSend) {
+  for (let i = 0; i < allPhotosToSend.length; i++) {
+    const item = allPhotosToSend[i];
     const photoPayload = item.blob || item.photo;
     if (item && photoPayload) {
       try {
-        await sendTelegramPhoto(photoPayload, item.caption, {
+        const sendRes = await sendTelegramPhoto(photoPayload, item.caption, {
           botToken: settings.botToken,
           chatId: settings.chatId,
           filename: item.filename
         });
+        if (!sendRes?.ok) {
+          console.warn(`[Telegram] Photo #${i + 1} (${item.filename}) failed:`, sendRes);
+        }
       } catch (err) {
-        console.warn('[Telegram] Photo send error:', err);
+        console.warn(`[Telegram] Photo #${i + 1} (${item.filename}) send error:`, err);
       }
-      await new Promise(r => setTimeout(r, 450));
+      // Delay 1200ms between each photo to strictly prevent Telegram group rate limit (429)
+      if (i < allPhotosToSend.length - 1) {
+        await new Promise(r => setTimeout(r, 1200));
+      }
     }
   }
 
